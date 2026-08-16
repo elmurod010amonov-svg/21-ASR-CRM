@@ -36,7 +36,7 @@ const GuestLoginGate: React.FC = () => {
     e.preventDefault();
     const ok = loginUser(identifier.trim(), password);
     if (!ok) {
-      setError('Noto‘g‘ri login yoki parol. Foydalanuvchi ID/email/telefon va parolni tekshiring.');
+      setError('Noto‘g‘ri login yoki parol.');
       return;
     }
     setError('');
@@ -45,20 +45,20 @@ const GuestLoginGate: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl p-6">
-        <div className="text-center mb-6">
+        <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white">21</div>
-          <h1 className="text-2xl font-black text-slate-900">21-ASR CRM</h1>
-          <p className="text-xs text-slate-500 mt-1">Tizimga kirish uchun xodim ma’lumotlarini kiriting</p>
+          <h1 className="text-2xl font-black text-slate-900">Admin kirish</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Login yoki ID / Email / Telefon</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Login</label>
             <input
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="emp-1 yoki +998200100704"
+              placeholder="Login"
+              autoComplete="username"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
               required
             />
@@ -70,7 +70,8 @@ const GuestLoginGate: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Parolni kiriting"
+              placeholder="Parol"
+              autoComplete="current-password"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
               required
             />

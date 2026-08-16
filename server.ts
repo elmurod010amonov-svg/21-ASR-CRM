@@ -61,6 +61,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// DB connectivity test endpoint (useful after adding MONGODB_URI env)
+app.get('/api/db-test', async (req, res) => {
+  try {
+    const db = await connectToMongo();
+    // ping the server
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (db as any).command({ ping: 1 });
+    return res.json({ ok: true, db: db.databaseName, ping: result });
+  } catch (error: any) {
+    console.error('DB test error:', error);
+    return res.status(500).json({ ok: false, error: error?.message || String(error) });
+  }
+});
+
 app.post('/api/telegram/send', async (req, res) => {
   try {
     const { chatId, text } = req.body || {};

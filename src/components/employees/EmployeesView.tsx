@@ -521,7 +521,7 @@ export const EmployeesView: React.FC = () => {
                   <label className="block text-slate-700 mb-1 font-bold">Email Manzili</label>
                   <input
                     type="email"
-                    placeholder="Masalan: dilnoza@21asr.uz"
+                    placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none font-medium"

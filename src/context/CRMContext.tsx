@@ -220,6 +220,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const getSuperAdminPassword = useCallback(() => {
+    const envValue = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPER_ADMIN_PASSWORD : undefined;
+    return (envValue && String(envValue).trim()) || 'Fjahongir0204';
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('21ASR_USER_CREDENTIALS', JSON.stringify(userCredentials));
@@ -752,14 +757,25 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginUser = (identifier: string, password: string): boolean => {
-    // identifier can be employee id, email or phone
-    const target = employees.find(e => e.id === identifier || e.email === identifier || e.phone === identifier);
+    const normalizedIdentifier = identifier.trim();
+    const normalizedPhone = (value: string) => value.replace(/\D/g, '');
+
+    const target = employees.find(e => {
+      const idMatch = e.id.toLowerCase() === normalizedIdentifier.toLowerCase();
+      const emailMatch = e.email.toLowerCase() === normalizedIdentifier.toLowerCase();
+      const phoneMatch = normalizedPhone(e.phone) === normalizedPhone(normalizedIdentifier);
+      return idMatch || emailMatch || phoneMatch;
+    });
+
     if (!target) return false;
+
     const stored = userCredentials[target.id];
-    if (!stored) return false;
-    const ok = stored === password;
+    const fallbackPassword = target.id === 'emp-1' ? getSuperAdminPassword() : undefined;
+    const ok = (stored ?? fallbackPassword) === password;
+
     if (ok) {
       setCurrentUser(target);
+      setActiveTab('Dashboard');
       logAudit('Foydalanuvchi tizimga kirdi', 'Auth', `login-${target.id}`, target.name);
       addNotification({ type: 'SYSTEM', title: 'Tizimga kirildi', message: `${target.name} sifatida tizimga kirdingiz`, linkModule: 'Dashboard' });
       return true;
