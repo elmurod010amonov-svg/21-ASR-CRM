@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { connectToMongo } from './src/db/mongoClient';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -252,6 +253,12 @@ Quyidagi tuzilmada xulosa ber:
 });
 
 async function startServer() {
+  // Connect to MongoDB (optional) if configured
+  try {
+    await connectToMongo();
+  } catch (err) {
+    console.warn('MongoDB not connected:', err?.message || err);
+  }
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

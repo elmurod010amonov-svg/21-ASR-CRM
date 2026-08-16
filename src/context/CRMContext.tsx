@@ -727,8 +727,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginUser = (identifier: string, password: string): boolean => {
-    // identifier can be employee id or email
-    const target = employees.find(e => e.id === identifier || e.email === identifier);
+    // identifier can be employee id, email or phone
+    const target = employees.find(e => e.id === identifier || e.email === identifier || e.phone === identifier);
     if (!target) return false;
     const stored = userCredentials[target.id];
     if (!stored) return false;
