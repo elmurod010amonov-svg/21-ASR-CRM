@@ -254,7 +254,7 @@ export const ClientList: React.FC = () => {
                       <td className="px-3 py-2 font-mono">
                         <div className="text-slate-700 text-[11px]">{client.phone}</div>
                         <div className="font-bold text-emerald-800 text-[10px] mt-0.5">
-                          {client.monthlyFee.toLocaleString()} so'm/oy
+                          {(client.monthlyFee || 0).toLocaleString()} so'm/oy
                         </div>
                       </td>
 

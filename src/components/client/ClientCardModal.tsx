@@ -64,13 +64,13 @@ export const ClientCardModal: React.FC = () => {
   const [showPaymentForm, setShowPaymentForm] = useState<boolean>(false);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: client?.name || '',
-    phone: client?.phone || '',
-    address: client?.address || '',
-    monthlyFee: String(client?.monthlyFee || 0),
-    notes: client?.notes || '',
-    type: client?.type || 'YURIDIK',
-    taxType: client?.taxType || 'AYLANMA',
+    name: '',
+    phone: '',
+    address: '',
+    monthlyFee: '0',
+    notes: '',
+    type: 'YURIDIK' as string,
+    taxType: 'AYLANMA' as string,
   });
 
   // New task quick form
@@ -84,6 +84,27 @@ export const ClientCardModal: React.FC = () => {
     proof: ProofAttachment;
     title: string;
   } | null>(null);
+
+  React.useEffect(() => {
+    if (!client) return;
+    setActiveTab('Umumiy');
+    setIsEditingClient(false);
+    setShowReportConfigModal(false);
+    setShowPaymentForm(false);
+    setShowTaskForm(false);
+    setEditForm({
+      name: client.name,
+      phone: client.phone,
+      address: client.address,
+      monthlyFee: String(client.monthlyFee || 0),
+      notes: client.notes || '',
+      type: client.type,
+      taxType: client.taxType,
+    });
+  }, [client?.id]);
+
+  const canManagePayments = currentUser.role === 'KASSIR';
+  const canEditClient = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'].includes(currentUser.role);
 
   if (!selectedClientIdForModal || !client) return null;
 
@@ -120,23 +141,6 @@ export const ClientCardModal: React.FC = () => {
     { id: 'Topshiriqlar', label: `9. Topshiriqlar (${clientTasks.length})`, icon: CheckSquare },
     { id: 'Tarix', label: '10. Tarix & Audit', icon: History },
   ];
-
-  const canManagePayments = currentUser.role === 'KASSIR';
-  const canEditClient = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'].includes(currentUser.role);
-
-  React.useEffect(() => {
-    if (client) {
-      setEditForm({
-        name: client.name,
-        phone: client.phone,
-        address: client.address,
-        monthlyFee: String(client.monthlyFee || 0),
-        notes: client.notes || '',
-        type: client.type,
-        taxType: client.taxType,
-      });
-    }
-  }, [client]);
 
   const handleClientEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();

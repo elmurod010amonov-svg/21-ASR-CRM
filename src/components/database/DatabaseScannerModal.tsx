@@ -38,9 +38,25 @@ export const DatabaseScannerModal: React.FC = () => {
   const [isFixing, setIsFixing] = useState(false);
   const [fixSuccessMessage, setFixSuccessMessage] = useState<string | null>(null);
 
+  const currentScan = scanResult;
+
+  React.useEffect(() => {
+    if (isScannerModalOpen && !scanResult) {
+      runDatabaseScan();
+    }
+  }, [isScannerModalOpen, scanResult, runDatabaseScan]);
+
   if (!isScannerModalOpen) return null;
 
-  const currentScan = scanResult || runDatabaseScan();
+  if (!currentScan) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="bg-white rounded-2xl px-6 py-5 text-sm font-bold text-slate-700 shadow-xl">
+          Baza skaneri ishga tushmoqda...
+        </div>
+      </div>
+    );
+  }
 
   const filteredIssues = currentScan.issues.filter(issue => {
     const matchesCategory = activeCategory === 'ALL' || issue.category === activeCategory;

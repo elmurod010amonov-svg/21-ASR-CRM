@@ -344,7 +344,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [employees, prefix]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_clients`, JSON.stringify(clients));
+    try {
+      localStorage.setItem(`${prefix}_clients`, JSON.stringify(clients));
+    } catch (err) {
+      console.error('Clients saqlanmadi (localStorage):', err);
+    }
   }, [clients, prefix]);
 
   useEffect(() => {
@@ -540,9 +544,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { scanResult: newScan, repairedCount };
   };
 
-  // Run initial scan on first mount
+  // Run initial scan on first mount (deferred to avoid setState during render loops)
   useEffect(() => {
-    runDatabaseScan();
+    const timer = window.setTimeout(() => {
+      runDatabaseScan();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const switchUserRole = (role: UserRole, employeeId?: string) => {
