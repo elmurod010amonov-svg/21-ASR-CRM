@@ -29,7 +29,9 @@ export const ClientList: React.FC = () => {
     kameral, 
     openClientCard, 
     addClient,
-    setClientReportTypes
+    setClientReportTypes,
+    currentUser,
+    deleteClient
   } = useCRM();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +70,8 @@ export const ClientList: React.FC = () => {
       return matchesSearch && matchesType && matchesTax && matchesAcc;
     });
   }, [clients, searchTerm, filterType, filterTaxType, filterAccountant]);
+
+  const canDeleteClient = currentUser.id !== 'guest' && currentUser.role !== 'KASSIR';
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,6 +301,21 @@ export const ClientList: React.FC = () => {
                             <Sliders className="w-3 h-3 text-slate-600" />
                             <span>Shakllar</span>
                           </button>
+                          {canDeleteClient && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`"${client.name}" mijozini o'chirishni xohlaysizmi?`)) {
+                                  deleteClient(client.id);
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-colors cursor-pointer"
+                              title="Mijozni o'chirish"
+                            >
+                              O'chirish
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => openClientCard(client.id)}

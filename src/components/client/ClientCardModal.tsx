@@ -51,14 +51,27 @@ export const ClientCardModal: React.FC = () => {
     createTask,
     createIssue,
     currentUser,
-    setClientReportTypes
+    setClientReportTypes,
+    updateClient
   } = useCRM();
+
+  const client = selectedClientIdForModal ? clients.find(c => c.id === selectedClientIdForModal) : undefined;
 
   const [activeTab, setActiveTab] = useState<string>('Umumiy');
   const [showReportConfigModal, setShowReportConfigModal] = useState<boolean>(false);
   const [paymentAmountInput, setPaymentAmountInput] = useState<string>('');
   const [paymentNotesInput, setPaymentNotesInput] = useState<string>('');
   const [showPaymentForm, setShowPaymentForm] = useState<boolean>(false);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: client?.name || '',
+    phone: client?.phone || '',
+    address: client?.address || '',
+    monthlyFee: String(client?.monthlyFee || 0),
+    notes: client?.notes || '',
+    type: client?.type || 'YURIDIK',
+    taxType: client?.taxType || 'AYLANMA',
+  });
 
   // New task quick form
   const [taskTitle, setTaskTitle] = useState('');
@@ -72,10 +85,7 @@ export const ClientCardModal: React.FC = () => {
     title: string;
   } | null>(null);
 
-  if (!selectedClientIdForModal) return null;
-
-  const client = clients.find(c => c.id === selectedClientIdForModal);
-  if (!client) return null;
+  if (!selectedClientIdForModal || !client) return null;
 
   // Filtered data for this client
   const clientReports = taxReports.filter(r => r.clientId === client.id);
@@ -112,6 +122,42 @@ export const ClientCardModal: React.FC = () => {
   ];
 
   const canManagePayments = currentUser.role === 'KASSIR';
+  const canEditClient = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'].includes(currentUser.role);
+
+  React.useEffect(() => {
+    if (client) {
+      setEditForm({
+        name: client.name,
+        phone: client.phone,
+        address: client.address,
+        monthlyFee: String(client.monthlyFee || 0),
+        notes: client.notes || '',
+        type: client.type,
+        taxType: client.taxType,
+      });
+    }
+  }, [client]);
+
+  const handleClientEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    if (!canEditClient) {
+      alert('Faqat admin yoki mas’ul buxgalter mijoz ma’lumotlarini tahrirlay oladi.');
+      return;
+    }
+
+    updateClient(client.id, {
+      name: editForm.name.trim(),
+      phone: editForm.phone.trim(),
+      address: editForm.address.trim(),
+      monthlyFee: Number(editForm.monthlyFee) || 0,
+      notes: editForm.notes.trim(),
+      type: editForm.type as any,
+      taxType: editForm.taxType as any,
+    });
+
+    setIsEditingClient(false);
+  };
 
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,12 +227,22 @@ export const ClientCardModal: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={closeClientCard}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {canEditClient && (
+              <button
+                onClick={() => setIsEditingClient(!isEditingClient)}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                {isEditingClient ? 'Bekor qilish' : 'Tahrirlash'}
+              </button>
+            )}
+            <button
+              onClick={closeClientCard}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* 10 TAB Bar */}
@@ -216,6 +272,64 @@ export const ClientCardModal: React.FC = () => {
           {/* TAB 1: UMUMIY 360° VIEW */}
           {activeTab === 'Umumiy' && (
             <div className="space-y-6">
+              {isEditingClient && (
+                <form onSubmit={handleClientEditSubmit} className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-extrabold text-slate-900 text-sm">Mijoz ma’lumotlarini tahrirlash</h4>
+                    <span className="text-[10px] text-slate-500">Admin nazorati</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Nomi</label>
+                      <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Telefon</label>
+                      <input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Turi</label>
+                      <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as any })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                        <option value="YURIDIK">Yuridik</option>
+                        <option value="YATT">YaTT</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Soliq turi</label>
+                      <select value={editForm.taxType} onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as any })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                        <option value="AYLANMA">AYLANMA</option>
+                        <option value="QQS">QQS</option>
+                        <option value="FOYDA">FOYDA</option>
+                        <option value="YATT_QATQIY">YATT_QATQIY</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Manzil</label>
+                      <input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Oylik to'lov</label>
+                      <input type="number" value={editForm.monthlyFee} onChange={(e) => setEditForm({ ...editForm, monthlyFee: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">STIR</label>
+                      <input value={client.stir} readOnly className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-500" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Izoh</label>
+                    <textarea rows={2} value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setIsEditingClient(false)} className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-[11px] cursor-pointer">Bekor qilish</button>
+                    <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-[11px] cursor-pointer">Saqlash</button>
+                  </div>
+                </form>
+              )}
+
               {/* 360 Health Status Cards Strip */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Mijozning 360° Umumiy Holati</h3>

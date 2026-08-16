@@ -102,23 +102,29 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
-      setError('Bajarilganlikni tasdiqlash uchun JPG yoki PDF isbot yuklanishi shart!');
-      return;
-    }
 
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
 
-    const proof: ProofAttachment = {
-      name: selectedFile.name,
-      type: selectedFile.type,
-      url: selectedFile.dataUrl,
-      size: selectedFile.size,
-      uploadedAt: formatted,
-      uploadedBy: currentUser.name,
-      comment: comment.trim() || undefined,
-    };
+    const proof: ProofAttachment = selectedFile
+      ? {
+          name: selectedFile.name,
+          type: selectedFile.type,
+          url: selectedFile.dataUrl,
+          size: selectedFile.size,
+          uploadedAt: formatted,
+          uploadedBy: currentUser.name,
+          comment: comment.trim() || undefined,
+        }
+      : {
+          name: 'Isbot yuborilmagan',
+          type: 'application/octet-stream',
+          url: '',
+          size: 'No file',
+          uploadedAt: formatted,
+          uploadedBy: currentUser.name,
+          comment: comment.trim() || undefined,
+        };
 
     onConfirm(proof, comment.trim() || undefined);
     onClose();
@@ -165,9 +171,9 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
           {/* Mandatory File Upload Zone */}
           <div className="space-y-1.5">
             <label className="block font-bold text-slate-800 flex items-center justify-between">
-              <span>Bajarilganlik Isboti (JPG, PNG yoki PDF) *</span>
-              <span className="text-[11px] text-rose-600 font-extrabold flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Majburiy
+              <span>Bajarilganlik Isboti (JPG, PNG yoki PDF)</span>
+              <span className="text-[11px] text-slate-500 font-semibold">
+                Ixtiyoriy
               </span>
             </label>
 
@@ -272,7 +278,7 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
 
           {/* Verification info badge */}
           <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 leading-relaxed">
-            <strong>Muhim qoida:</strong> Isbot hujjati (JPG/PDF) bosh buxgalter va direktor tomonidan to'liq ko'rib chiqiladi. Isbotsiz vazifalar qabul qilinmaydi.
+            <strong>Muhim qoida:</strong> Isbot yuklash ixtiyoriy. Agar fayl mavjud bo'lsa, bosh buxgalter va direktor tomonidan ko'rib chiqiladi; bo'lmasa ham vazifa topshirilgan deb qayd etish mumkin.
           </div>
 
           {/* Actions */}
@@ -286,12 +292,7 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!selectedFile}
-              className={`px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-2 ${
-                selectedFile
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer scale-100 active:scale-95'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              }`}
+              className="px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer scale-100 active:scale-95"
             >
               <CheckCircle2 className="w-4 h-4" />
               {actionLabel}

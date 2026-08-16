@@ -231,13 +231,13 @@ export const SettingsView: React.FC = () => {
 
           <button
             onClick={() => {
-              if (window.confirm("Rostdan ham barcha ma'lumotlarni dastlabki demo holatiga qaytarmoqchimisiz?")) {
+              if (window.confirm("Rostdan ham barcha ma'lumotlarni dastlabki demo holatiga qaytarmoqchimisiz? Bu test uchun qo'shilgan mijozlar va parollar ham tozalanadi.")) {
                 resetToDemoData();
               }
             }}
             className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
           >
-            Demo Ma'lumotlarni Qayta Tiklash
+            Test Ma'lumotlarni Tozalash
           </button>
         </div>
       </div>

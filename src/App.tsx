@@ -26,6 +26,74 @@ import { StatisticsView } from './components/statistics/StatisticsView';
 import { AuditLogView } from './components/audit/AuditLogView';
 import { SettingsView } from './components/settings/SettingsView';
 
+const GuestLoginGate: React.FC = () => {
+  const { loginUser } = useCRM();
+  const [identifier, setIdentifier] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = loginUser(identifier.trim(), password);
+    if (!ok) {
+      setError('Noto‘g‘ri login yoki parol. Foydalanuvchi ID/email/telefon va parolni tekshiring.');
+      return;
+    }
+    setError('');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl p-6">
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white">21</div>
+          <h1 className="text-2xl font-black text-slate-900">21-ASR CRM</h1>
+          <p className="text-xs text-slate-500 mt-1">Tizimga kirish uchun xodim ma’lumotlarini kiriting</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Login yoki ID / Email / Telefon</label>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="emp-1 yoki +998200100704"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Parol</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Parolni kiriting"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition-colors"
+          >
+            Tizimga kirish
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const MainContent: React.FC = () => {
   const { activeTab } = useCRM();
 
@@ -102,10 +170,15 @@ const MainContent: React.FC = () => {
   );
 };
 
+const AppShell: React.FC = () => {
+  const { currentUser } = useCRM();
+  return currentUser.id === 'guest' ? <GuestLoginGate /> : <MainContent />;
+};
+
 export default function App() {
   return (
     <CRMProvider>
-      <MainContent />
+      <AppShell />
     </CRMProvider>
   );
 }

@@ -39,7 +39,8 @@ export const EmployeesView: React.FC = () => {
     switchUserRole,
     openDirectChatWithEmployee,
     setActiveTab,
-    registerUser
+    registerUser,
+    updateUserPassword
   } = useCRM();
 
   const [search, setSearch] = useState('');
@@ -47,6 +48,8 @@ export const EmployeesView: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [assigningEmployee, setAssigningEmployee] = useState<Employee | null>(null);
+  const [passwordResetEmployee, setPasswordResetEmployee] = useState<Employee | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   // New employee state
   const [name, setName] = useState('');
@@ -153,6 +156,24 @@ export const EmployeesView: React.FC = () => {
     if (confirm(`Haqiqatdan ham "${emp.name}" xodimini tizimdan o'chirmoqchimisiz? Unga biriktirilgan barcha korxonalar va hisobotlar Super Adminga qaytariladi.`)) {
       deleteEmployee(emp.id);
     }
+  };
+
+  const handlePasswordReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordResetEmployee || !newPassword.trim()) {
+      alert('Yangi parolni kiriting!');
+      return;
+    }
+
+    const ok = updateUserPassword(passwordResetEmployee.id, newPassword.trim());
+    if (!ok) {
+      alert('Parol yangilanishi muvaffaqiyatsiz tugadi.');
+      return;
+    }
+
+    alert(`${passwordResetEmployee.name} uchun parol yangilandi.`);
+    setPasswordResetEmployee(null);
+    setNewPassword('');
   };
 
   // Stats calculation
@@ -395,6 +416,17 @@ export const EmployeesView: React.FC = () => {
                         title="Tahrirlash"
                       >
                         <Edit className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setPasswordResetEmployee(emp);
+                          setNewPassword('');
+                        }}
+                        className="p-2 rounded-xl text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
+                        title="Parolni o'zgartirish"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
                       </button>
 
                       <button
@@ -668,6 +700,53 @@ export const EmployeesView: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
                 >
                   Yangilash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {passwordResetEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm">Parolni Yangilash</h3>
+                <p className="text-[10px] text-slate-400">{passwordResetEmployee.name} uchun yangi kirish paroli</p>
+              </div>
+              <button onClick={() => setPasswordResetEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordReset} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">Yangi parol</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Kamida 4 ta belgi"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-emerald-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPasswordResetEmployee(null)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
+                >
+                  Parolni Saqlash
                 </button>
               </div>
             </form>

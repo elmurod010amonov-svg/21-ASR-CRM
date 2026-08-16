@@ -157,6 +157,7 @@ interface CRMContextType {
   // Import & Persistence
   importClientsFromExcel: (newClients: Partial<Client>[], updateExisting: boolean) => { added: number; updated: number; skipped: number };
   registerUser: (employeeId: string, password: string) => void;
+  updateUserPassword: (employeeId: string, password: string) => boolean;
   loginUser: (identifier: string, password: string) => boolean;
   logAudit: (action: string, objectType: string, objectId: string, objectName: string, oldValue?: string, newValue?: string) => void;
   resetToDemoData: () => void;
@@ -225,7 +226,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
   }, [userCredentials]);
 
-  const [currentUser, setCurrentUser] = useState<Employee>(() => employees[0] || INITIAL_EMPLOYEES[0]);
+  const [currentUser, setCurrentUser] = useState<Employee>(() => ({
+    id: 'guest',
+    name: 'Tashrifchi',
+    role: 'BUXGALTER',
+    email: '',
+    phone: '',
+    position: 'Mehmon',
+    avatar: '/assets/guest-avatar.png',
+    status: 'INACTIVE',
+    assignedClientCount: 0,
+    reportCompletionRate: 0,
+    completedTasksCount: 0,
+    pendingTasksCount: 0,
+    overdueTasksCount: 0,
+    issuesCount: 0,
+    lettersCount: 0,
+    accounting1CCount: 0,
+  }));
 
   const [clients, setClients] = useState<Client[]>(() => 
     loadData('clients', INITIAL_CLIENTS, INITIAL_CLIENTS)
@@ -632,9 +650,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteClient = (id: string) => {
     const target = clients.find(c => c.id === id);
     if (!target) return;
-    // permission: only SUPER_ADMIN or DIREKTOR can delete clients
-    if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'DIREKTOR') {
-      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun yetarli huquq yo\'q.', linkModule: 'Mijozlar' });
+    const allowedRoles = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'];
+    if (!allowedRoles.includes(currentUser.role) || currentUser.id === 'guest') {
+      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun faqat SUPER_ADMIN, DIREKTOR, BUXGALTER yoki NAZORATCHI ruxsatiga ega bo\'ladi.', linkModule: 'Mijozlar' });
       return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
@@ -724,6 +742,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const registerUser = (employeeId: string, password: string) => {
     setUserCredentials(prev => ({ ...prev, [employeeId]: password }));
     logAudit('Foydalanuvchi ro\'yxatdan o\'tkazildi', 'Auth', `reg-${employeeId}`, `Credentials set for ${employeeId}`);
+  };
+
+  const updateUserPassword = (employeeId: string, password: string): boolean => {
+    if (!employeeId || !password.trim()) return false;
+    setUserCredentials(prev => ({ ...prev, [employeeId]: password.trim() }));
+    logAudit('Foydalanuvchi paroli yangilandi', 'Auth', `reset-${employeeId}`, `Credentials reset for ${employeeId}`);
+    return true;
   };
 
   const loginUser = (identifier: string, password: string): boolean => {
@@ -1393,6 +1418,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
+      let mappedAccountant = item.accountantName || item.accountantId || 'Jahongir Amonov';
+      let mappedAccountantId = item.accountantId || 'emp-1';
+
+      if (!item.accountantId && item.accountantName) {
+        const match = employees.find(emp => emp.name.toLowerCase() === String(item.accountantName).toLowerCase());
+        if (match) {
+          mappedAccountantId = match.id;
+          mappedAccountant = match.name;
+        }
+      }
+
       if (existingStirMap.has(stir)) {
         if (updateExisting) {
           const existingClient = existingStirMap.get(stir)!;
@@ -1405,7 +1441,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               phone: item.phone || updatedClientsList[idx].phone,
               taxType: item.taxType || updatedClientsList[idx].taxType,
               type: item.type || updatedClientsList[idx].type,
-              accountantName: item.accountantName || updatedClientsList[idx].accountantName,
+              accountantId: mappedAccountantId,
+              accountantName: mappedAccountant || updatedClientsList[idx].accountantName,
             };
             updated++;
           }
@@ -1413,7 +1450,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           skipped++;
         }
       } else {
-        // Create new client
         const newClient: Client = {
           id: `cli-${Date.now()}-${index}`,
           name: item.name,
@@ -1422,8 +1458,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           taxType: item.taxType || 'AYLANMA',
           phone: item.phone || '+998 90 000 00 00',
           address: item.address || 'O\'zbekiston',
-          accountantId: item.accountantId || 'emp-1',
-          accountantName: item.accountantName || 'Jahongir Amonov',
+          accountantId: mappedAccountantId,
+          accountantName: mappedAccountant,
           monthlyFee: item.monthlyFee || 2000000,
           contractDate: '2024-08-01',
           status: 'ACTIVE',
@@ -1466,6 +1502,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setChatMessages(INITIAL_CHAT_MESSAGES);
     setAuditLogs(INITIAL_AUDIT_LOGS);
     setNotifications(INITIAL_NOTIFICATIONS);
+    setUserCredentials({});
     
     const curPrefix = getPrefix(isDemoMode);
     localStorage.removeItem(`${curPrefix}_employees`);
@@ -1480,6 +1517,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`${curPrefix}_chatMessages`);
     localStorage.removeItem(`${curPrefix}_auditLogs`);
     localStorage.removeItem(`${curPrefix}_notifications`);
+    localStorage.removeItem('21ASR_USER_CREDENTIALS');
   };
 
   const logoutUser = () => {
@@ -1582,6 +1620,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateEmployee,
         deleteEmployee,
         registerUser,
+        updateUserPassword,
         loginUser,
         assignClientsToEmployee,
         updateTaxReportStatus,
