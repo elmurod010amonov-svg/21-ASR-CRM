@@ -142,28 +142,30 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
   const isBulkMode = !!clientIds && clientIds.length > 1;
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (client) {
       setSelectedClientId(client.id);
       if (client.assignedReportTypes && client.assignedReportTypes.length > 0) {
-        setSelectedReports(client.assignedReportTypes);
+        setSelectedReports([...client.assignedReportTypes]);
       } else if (currentAssignedReports.length > 0) {
-        setSelectedReports(currentAssignedReports);
+        setSelectedReports([...currentAssignedReports]);
+      } else if (client.taxType === 'QQS') {
+        setSelectedReports(['QQS', 'FOYDA', 'JSHDS', 'INPS']);
+      } else if (client.taxType === 'FOYDA') {
+        setSelectedReports(['FOYDA', 'JSHDS', 'INPS']);
       } else {
-        // Default inference
-        if (client.taxType === 'QQS') {
-          setSelectedReports(['QQS', 'FOYDA', 'JSHDS', 'INPS']);
-        } else if (client.taxType === 'FOYDA') {
-          setSelectedReports(['FOYDA', 'JSHDS', 'INPS']);
-        } else {
-          setSelectedReports(['AYLANMA', 'JSHDS', 'INPS']);
-        }
+        setSelectedReports(['AYLANMA', 'JSHDS', 'INPS']);
       }
-    } else if (currentAssignedReports.length > 0) {
-      setSelectedReports(currentAssignedReports);
+      return;
+    }
+
+    if (currentAssignedReports.length > 0) {
+      setSelectedReports([...currentAssignedReports]);
     } else {
       setSelectedReports(['AYLANMA', 'JSHDS', 'INPS']);
     }
-  }, [client, currentAssignedReports, isOpen]);
+  }, [isOpen, client?.id]);
 
   // When changing selected client from dropdown (if no single client fixed)
   const handleClientChange = (newClientId: string) => {
@@ -171,7 +173,7 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
     const target = clientsList.find(c => c.id === newClientId);
     if (target) {
       if (target.assignedReportTypes && target.assignedReportTypes.length > 0) {
-        setSelectedReports(target.assignedReportTypes);
+        setSelectedReports([...target.assignedReportTypes]);
       } else if (target.taxType === 'QQS') {
         setSelectedReports(['QQS', 'FOYDA', 'JSHDS', 'INPS']);
       } else {
@@ -185,7 +187,7 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
   const currentClient = client || clientsList.find(c => c.id === selectedClientId);
 
   const toggleReport = (type: ReportType) => {
-    setSelectedReports(prev => 
+    setSelectedReports(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
   };
@@ -223,8 +225,11 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">

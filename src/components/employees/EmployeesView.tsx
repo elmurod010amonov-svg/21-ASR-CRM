@@ -105,16 +105,31 @@ export const EmployeesView: React.FC = () => {
     setShowAddModal(false);
   };
 
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>, employeeId?: string) => {
     const file = event.target.files?.[0];
-    if (!file || !editingEmployee) return;
+    const targetId = employeeId || editingEmployee?.id;
+    if (!file || !targetId) return;
+
+    const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png' || /\.(jpe?g|png)$/i.test(file.name);
+    if (!isJpgOrPng) {
+      alert('Faqat JPG yoki PNG formatdagi rasm yuklash mumkin.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Rasm hajmi 3 MB dan oshmasligi kerak.');
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result || '');
       if (!dataUrl) return;
-      updateEmployeeAvatar(editingEmployee.id, dataUrl);
-      setEditingEmployee({ ...editingEmployee, avatar: dataUrl });
+      updateEmployeeAvatar(targetId, dataUrl);
+      if (editingEmployee && editingEmployee.id === targetId) {
+        setEditingEmployee({ ...editingEmployee, avatar: dataUrl });
+      }
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -311,11 +326,24 @@ export const EmployeesView: React.FC = () => {
                 {/* Employee Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={emp.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'} 
-                      alt={emp.name} 
-                      className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/20" 
-                    />
+                    <div className="relative group/avatar">
+                      <img 
+                        src={emp.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'} 
+                        alt={emp.name} 
+                        className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/20" 
+                      />
+                      {(isSuperAdmin || emp.id === currentUser.id) && (
+                        <label className="absolute inset-0 flex items-center justify-center rounded-2xl bg-slate-900/55 text-[9px] font-bold text-white opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => handleAvatarUpload(e, emp.id)}
+                          />
+                          JPG/PNG
+                        </label>
+                      )}
+                    </div>
                     <div>
                       <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
                         {emp.name}
@@ -619,8 +647,8 @@ export const EmployeesView: React.FC = () => {
                   className="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-200"
                 />
                 <label className="cursor-pointer rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100">
-                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                  Rasm yuklash
+                  <input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="hidden" onChange={(e) => handleAvatarUpload(e)} />
+                  JPG/PNG rasm yuklash
                 </label>
               </div>
 

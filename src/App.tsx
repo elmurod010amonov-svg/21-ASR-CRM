@@ -58,7 +58,7 @@ const GuestLoginGate: React.FC = () => {
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="admin"
+              placeholder="jahongiramonov"
               autoComplete="username"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
               required

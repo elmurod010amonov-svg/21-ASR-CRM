@@ -38,6 +38,8 @@ export const Navbar: React.FC = () => {
     toggleDemoMode,
     scanResult,
     runDatabaseScan,
+    updateEmployeeAvatar,
+
     setIsScannerModalOpen
   } = useCRM();
 
@@ -49,6 +51,32 @@ export const Navbar: React.FC = () => {
   const unreadNotifs = notifications.filter(n => !n.read);
   const currentHealth = scanResult?.healthScore ?? 100;
   const issuesCount = scanResult?.totalIssues ?? 0;
+
+  const handleOwnAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || currentUser.id === 'guest') return;
+
+    const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png' || /\.(jpe?g|png)$/i.test(file.name);
+    if (!isJpgOrPng) {
+      alert('Faqat JPG yoki PNG formatdagi rasm yuklash mumkin.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Rasm hajmi 3 MB dan oshmasligi kerak.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      if (!dataUrl) return;
+      updateEmployeeAvatar(currentUser.id, dataUrl);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-13 px-3 sm:px-4 md:px-5 bg-white border-b border-slate-200/90 shadow-2xs">
@@ -308,13 +336,22 @@ export const Navbar: React.FC = () => {
             <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-50 animate-in fade-in duration-100">
               <div className="p-2.5 border-b border-slate-100 flex items-center gap-2.5">
                 <img src={currentUser.avatar} alt={currentUser.name} className="w-9 h-9 rounded-lg object-cover" />
-                <div className="overflow-hidden">
+                <div className="overflow-hidden flex-1 min-w-0">
                   <div className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</div>
                   <div className="text-[10px] text-slate-500 truncate">{currentUser.email}</div>
                   <div className="text-[9px] font-semibold text-emerald-600 mt-0.5 font-mono">{currentUser.phone}</div>
                 </div>
               </div>
               <div className="p-1 space-y-0.5 text-xs">
+                <label className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-medium text-[11px]">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={handleOwnAvatarUpload}
+                  />
+                  <User className="w-3.5 h-3.5 text-emerald-600" /> Profil rasmini yuklash (JPG/PNG)
+                </label>
                 <button
                   onClick={() => {
                     setIsScannerModalOpen(true);

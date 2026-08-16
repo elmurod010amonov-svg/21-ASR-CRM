@@ -167,7 +167,7 @@ interface CRMContextType {
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 const DEMO_STORAGE_PREFIX = '21ASR_CRM_DEMO_V1';
-const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V1';
+const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V2'; // V2: real mode starts without seeded test clients/services
 const MODE_STORAGE_KEY = '21ASR_CRM_ACTIVE_MODE';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -256,7 +256,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }));
 
   const [clients, setClients] = useState<Client[]>(() => 
-    loadData('clients', INITIAL_CLIENTS, INITIAL_CLIENTS)
+    loadData('clients', INITIAL_CLIENTS, [])
   );
 
   const [periods, setPeriods] = useState<ReportPeriod[]>(() => 
@@ -268,35 +268,35 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const [taxReports, setTaxReports] = useState<TaxReport[]>(() => 
-    loadData('taxReports', INITIAL_TAX_REPORTS, INITIAL_TAX_REPORTS)
+    loadData('taxReports', INITIAL_TAX_REPORTS, [])
   );
 
   const [accounting1C, setAccounting1C] = useState<Accounting1CRecord[]>(() => 
-    loadData('accounting1C', INITIAL_ACCOUNTING_1C, INITIAL_ACCOUNTING_1C)
+    loadData('accounting1C', INITIAL_ACCOUNTING_1C, [])
   );
 
   const [payments, setPayments] = useState<PaymentRecord[]>(() => 
-    loadData('payments', INITIAL_PAYMENTS, INITIAL_PAYMENTS)
+    loadData('payments', INITIAL_PAYMENTS, [])
   );
 
   const [letters, setLetters] = useState<LetterRecord[]>(() => 
-    loadData('letters', INITIAL_LETTERS, INITIAL_LETTERS)
+    loadData('letters', INITIAL_LETTERS, [])
   );
 
   const [kameral, setKameral] = useState<KameralAudit[]>(() => 
-    loadData('kameral', INITIAL_KAMERAL, INITIAL_KAMERAL)
+    loadData('kameral', INITIAL_KAMERAL, [])
   );
 
   const [issues, setIssues] = useState<IssueRecord[]>(() => 
-    loadData('issues', INITIAL_ISSUES, INITIAL_ISSUES)
+    loadData('issues', INITIAL_ISSUES, [])
   );
 
   const [tasks, setTasks] = useState<TaskRecord[]>(() => 
-    loadData('tasks', INITIAL_TASKS, INITIAL_TASKS)
+    loadData('tasks', INITIAL_TASKS, [])
   );
 
   const [reminders, setReminders] = useState<AutomaticReminder[]>(() => 
-    loadData('reminders', INITIAL_REMINDERS, INITIAL_REMINDERS)
+    loadData('reminders', INITIAL_REMINDERS, [])
   );
 
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => 
@@ -304,20 +304,33 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => 
-    loadData('chatMessages', INITIAL_CHAT_MESSAGES, INITIAL_CHAT_MESSAGES)
+    loadData('chatMessages', INITIAL_CHAT_MESSAGES, [])
   );
 
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(() => 
-    loadData('auditLogs', INITIAL_AUDIT_LOGS, INITIAL_AUDIT_LOGS)
+    loadData('auditLogs', INITIAL_AUDIT_LOGS, [])
   );
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => 
-    loadData('notifications', INITIAL_NOTIFICATIONS, INITIAL_NOTIFICATIONS)
+    loadData('notifications', INITIAL_NOTIFICATIONS, [])
   );
 
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const [selectedClientIdForModal, setSelectedClientIdForModal] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState<boolean>(false);
+
+  // One-time cleanup: drop legacy real-mode test seed (V1) so real workspace stays empty
+  useEffect(() => {
+    try {
+      const legacyPrefix = '21ASR_CRM_REAL_V1';
+      [
+        'clients', 'taxReports', 'accounting1C', 'payments', 'letters',
+        'kameral', 'issues', 'tasks', 'chatMessages', 'auditLogs', 'notifications',
+      ].forEach((key) => localStorage.removeItem(`${legacyPrefix}_${key}`));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -764,14 +777,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginUser = (identifier: string, password: string): boolean => {
     const normalizedIdentifier = identifier.trim().toLowerCase();
     const normalizedPhone = (value: string) => value.replace(/\D/g, '');
-    const adminAliases = new Set(['admin', 'superadmin', 'super admin', 'super-admin', 'emp-1']);
+    const compactName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const adminAliases = new Set([
+      'jahongiramonov',
+      'jahongir',
+      'emp-1',
+      'admin',
+      'superadmin',
+      'super admin',
+      'super-admin',
+    ]);
 
     const target = employees.find(e => {
       if (adminAliases.has(normalizedIdentifier) && e.id === 'emp-1') return true;
       const idMatch = e.id.toLowerCase() === normalizedIdentifier;
       const emailMatch = e.email.toLowerCase() === normalizedIdentifier;
       const phoneMatch = normalizedPhone(e.phone) === normalizedPhone(identifier.trim());
-      return idMatch || emailMatch || phoneMatch;
+      const nameMatch = compactName(e.name) === compactName(normalizedIdentifier);
+      return idMatch || emailMatch || phoneMatch || nameMatch;
     });
 
     if (!target) return false;
