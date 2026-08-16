@@ -58,12 +58,12 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold text-sm shadow-xs">
             21
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden sm:block min-w-0">
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="font-extrabold text-slate-900 tracking-tight text-sm">21-ASR CRM</span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">HD PRO</span>
+              <span className="font-extrabold text-slate-900 text-sm whitespace-nowrap tracking-normal">21-ASRCRM</span>
+              <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 uppercase">PRO</span>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium leading-none mt-1">Buxgalteriya & Nazorat Tizimi</p>
+            <p className="text-[10px] text-slate-500 font-medium leading-none mt-1 whitespace-nowrap">Buxgalteriya & Nazorat</p>
           </div>
         </div>
 

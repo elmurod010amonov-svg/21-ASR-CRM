@@ -222,7 +222,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getSuperAdminPassword = useCallback(() => {
     const envValue = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPER_ADMIN_PASSWORD : undefined;
-    return (envValue && String(envValue).trim()) || 'Fjahongir0204';
+    const fromEnv = envValue && String(envValue).trim();
+    // Ignore placeholder values from .env.example so login never breaks on Vercel
+    if (fromEnv && fromEnv !== 'your-admin-password' && fromEnv !== 'CHANGE_ME') {
+      return fromEnv;
+    }
+    return 'Fjahongir0204';
   }, []);
 
   useEffect(() => {
@@ -757,21 +762,26 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginUser = (identifier: string, password: string): boolean => {
-    const normalizedIdentifier = identifier.trim();
+    const normalizedIdentifier = identifier.trim().toLowerCase();
     const normalizedPhone = (value: string) => value.replace(/\D/g, '');
+    const adminAliases = new Set(['admin', 'superadmin', 'super admin', 'super-admin', 'emp-1']);
 
     const target = employees.find(e => {
-      const idMatch = e.id.toLowerCase() === normalizedIdentifier.toLowerCase();
-      const emailMatch = e.email.toLowerCase() === normalizedIdentifier.toLowerCase();
-      const phoneMatch = normalizedPhone(e.phone) === normalizedPhone(normalizedIdentifier);
+      if (adminAliases.has(normalizedIdentifier) && e.id === 'emp-1') return true;
+      const idMatch = e.id.toLowerCase() === normalizedIdentifier;
+      const emailMatch = e.email.toLowerCase() === normalizedIdentifier;
+      const phoneMatch = normalizedPhone(e.phone) === normalizedPhone(identifier.trim());
       return idMatch || emailMatch || phoneMatch;
     });
 
     if (!target) return false;
 
     const stored = userCredentials[target.id];
-    const fallbackPassword = target.id === 'emp-1' ? getSuperAdminPassword() : undefined;
-    const ok = (stored ?? fallbackPassword) === password;
+    const adminPassword = getSuperAdminPassword();
+    const ok =
+      target.id === 'emp-1'
+        ? password === stored || password === adminPassword
+        : !!stored && stored === password;
 
     if (ok) {
       setCurrentUser(target);

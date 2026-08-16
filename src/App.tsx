@@ -46,8 +46,9 @@ const GuestLoginGate: React.FC = () => {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl p-6">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white">21</div>
-          <h1 className="text-2xl font-black text-slate-900">Admin kirish</h1>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-lg font-extrabold text-white">21</div>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-normal whitespace-nowrap">21-ASRCRM</h1>
+          <p className="mt-1 text-xs font-medium text-slate-500">Admin kirish</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,7 +58,7 @@ const GuestLoginGate: React.FC = () => {
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Login"
+              placeholder="admin"
               autoComplete="username"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
               required
