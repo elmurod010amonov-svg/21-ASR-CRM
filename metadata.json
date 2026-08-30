@@ -1,0 +1,6 @@
+{
+  "name": "21-ASR CRM",
+  "description": "Buxgalteriya va raqamli xizmatlar tashkiloti uchun professional boshqaruv va hisobotlar CRM tizimi",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
