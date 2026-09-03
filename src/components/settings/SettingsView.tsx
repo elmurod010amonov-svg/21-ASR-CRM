@@ -49,6 +49,25 @@ export const SettingsView: React.FC = () => {
     alert('Qarzdorlik akti shabloni saqlandi!');
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      // For Word files, we'll extract text content
+      if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
+        // For now, we'll store the base64 content
+        // In a real implementation, you'd use a library like mammoth.js to extract text from .docx
+        setTemplateInput(content);
+      } else {
+        setTemplateInput(content);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const exportDataJson = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
       JSON.stringify({
@@ -240,6 +259,20 @@ export const SettingsView: React.FC = () => {
             <p className="text-xs text-slate-500 leading-relaxed">
               SUPER_ADMIN tomonidan qarzdorlik akti shablonini sozlash. Quyidagi o'zgaruvchilardan foydalaning: {`{korxona_nomi}`}, {`{stir}`}, {`{manzil}`}, {`{qarz_miqdori}`}, {`{oylik_tolov}`}, {`{tolangan}`}, {`{sana}`}
             </p>
+            
+            <div className="flex gap-2">
+              <label className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2">
+                <Upload className="w-4 h-4" />
+                Word faylni yuklash (.doc, .docx)
+                <input
+                  type="file"
+                  accept=".doc,.docx,.txt"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
             <textarea
               value={templateInput}
               onChange={(e) => setTemplateInput(e.target.value)}

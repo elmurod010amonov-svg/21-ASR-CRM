@@ -986,12 +986,32 @@ Imzo
       .replace(/{tolangan}/g, payment.paidAmount.toLocaleString() + ' so\'m')
       .replace(/{sana}/g, today);
 
-    // Create and download the file
-    const blob = new Blob([actContent], { type: 'text/plain;charset=utf-8' });
+    // Create and download the file as Word document
+    // Convert plain text to Word-compatible format
+    const wordContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+            xmlns:w='urn:schemas-microsoft-com:office:word'
+            xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>Qarzdorlik Akti</title>
+        <style>
+          body { font-family: 'Times New Roman', Arial, sans-serif; font-size: 12pt; }
+          h1 { font-size: 16pt; font-weight: bold; text-align: center; }
+          p { margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <pre style="white-space: pre-wrap; font-family: 'Times New Roman', Arial, sans-serif; font-size: 12pt;">${actContent}</pre>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff', wordContent], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Qarzdorlik_Akt_${client.name}_${today}.txt`;
+    link.download = `Qarzdorlik_Akt_${client.name}_${today}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1001,7 +1021,7 @@ Imzo
     addNotification({
       type: 'SYSTEM',
       title: '✅ Qarzdorlik akti yuklab olindi',
-      message: `${client.name} uchun qarzdorlik akti yaratildi.`,
+      message: `${client.name} uchun qarzdorlik akti Word formatida yaratildi.`,
       linkModule: 'To\'lovlar'
     });
   };
@@ -1827,7 +1847,6 @@ Imzo
         addNotification,
         resetToDemoData,
         clearDemoClients,
-        logoutUser,
       }}
     >
       {children}
