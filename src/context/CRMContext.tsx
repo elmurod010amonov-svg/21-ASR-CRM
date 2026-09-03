@@ -221,7 +221,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const getSuperAdminPassword = useCallback(() => {
-    const envValue = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPER_ADMIN_PASSWORD : undefined;
+    const envValue = (import.meta as any)?.env?.VITE_SUPER_ADMIN_PASSWORD;
     const fromEnv = envValue && String(envValue).trim();
     // Ignore placeholder values from .env.example so login never breaks on Vercel
     if (fromEnv && fromEnv !== 'your-admin-password' && fromEnv !== 'CHANGE_ME') {
@@ -554,6 +554,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const switchUserRole = (role: UserRole, employeeId?: string) => {
+    // Faqat SUPER_ADMIN boshqa rollarga o'tishi mumkin
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN boshqa rollarga o\'tishi mumkin.',
+        linkModule: 'Dashboard'
+      });
+      return;
+    }
+
     let targetEmployee = employees.find(e => employeeId ? e.id === employeeId : e.role === role);
     if (!targetEmployee) {
       targetEmployee = employees.find(e => e.role === role) || employees[0];
@@ -787,8 +798,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const normalizedPhone = (value: string) => value.replace(/\D/g, '');
     const compactName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
     const adminAliases = new Set([
-      'jahongiramonov',
-      'jahongir',
       'emp-1',
       'admin',
       'superadmin',

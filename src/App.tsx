@@ -43,50 +43,50 @@ const GuestLoginGate: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl p-6">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-lg font-extrabold text-white">21</div>
-          <h1 className="text-xl font-extrabold text-slate-900 tracking-normal whitespace-nowrap">21-ASRCRM</h1>
-          <p className="mt-1 text-xs font-medium text-slate-500">Admin kirish</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl p-8">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-lg shadow-emerald-500/30 text-2xl font-black text-white">21</div>
+          <h1 className="text-3xl font-black text-white tracking-wide">21-ASR CRM</h1>
+          <p className="mt-2 text-sm font-semibold text-white/80">Buxgalteriya va Nazorat Tizimi</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Login</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/90 mb-1.5">Login / STIR</label>
             <input
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="jahongiramonov"
+              placeholder="Login yoki STIR kiriting"
               autoComplete="username"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
+              className="w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm font-medium text-white placeholder-white/50 outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Parol</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/90 mb-1.5">Parol</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Parol"
+              placeholder="••••••••"
               autoComplete="current-password"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:bg-white"
+              className="w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm font-medium text-white placeholder-white/50 outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all"
               required
             />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+            <div className="rounded-xl border border-red-400/30 bg-red-500/20 px-4 py-3 text-xs font-bold text-white">
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition-colors"
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 active:scale-[0.98] transition-all"
           >
             Tizimga kirish
           </button>
@@ -143,7 +143,7 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-[#F1F3F5] text-slate-900 flex flex-col font-sans antialiased overflow-hidden select-none">
+    <div className="h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 flex flex-col font-sans antialiased overflow-hidden select-none">
       {/* Top Fixed Header Navbar */}
       <Navbar />
 
@@ -153,8 +153,8 @@ const MainContent: React.FC = () => {
         <Sidebar />
 
         {/* Dynamic Main Workspace View */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 bg-[#F1F3F5]">
-          <div className="max-w-[1600px] mx-auto w-full space-y-4">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-900/50">
+          <div className="max-w-[1700px] mx-auto w-full space-y-5">
             {renderActiveView()}
           </div>
         </main>
