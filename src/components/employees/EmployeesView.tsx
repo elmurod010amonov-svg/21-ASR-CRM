@@ -1,37 +1,38 @@
 import React, { useState } from 'react';
-import { 
-  UserCheck, 
-  Plus, 
-  Search, 
-  Phone, 
-  Mail, 
-  Building2, 
-  CheckCircle2, 
-  AlertCircle, 
-  X, 
-  ShieldCheck, 
-  Trash2, 
-  Edit, 
-  MessageSquare, 
-  Users, 
-  Briefcase, 
-  Check, 
+import {
+  UserCheck,
+  Plus,
+  Search,
+  Phone,
+  Mail,
+  Building2,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ShieldCheck,
+  Trash2,
+  Edit,
+  MessageSquare,
+  Users,
+  Briefcase,
+  Check,
   Filter,
   UserPlus,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Gift
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { UserRole, Employee } from '../../types';
+import { UserRole, Employee, GiftType } from '../../types';
 
 export const EmployeesView: React.FC = () => {
-  const { 
-    employees, 
-    clients, 
-    taxReports, 
-    tasks, 
+  const {
+    employees,
+    clients,
+    taxReports,
+    tasks,
     currentUser,
-    addEmployee, 
+    addEmployee,
     updateEmployee,
     updateEmployeeAvatar,
     deleteEmployee,
@@ -40,7 +41,10 @@ export const EmployeesView: React.FC = () => {
     openDirectChatWithEmployee,
     setActiveTab,
     registerUser,
-    updateUserPassword
+    updateUserPassword,
+    giveGift,
+    deleteGift,
+    gifts
   } = useCRM();
 
   const [search, setSearch] = useState('');
@@ -50,6 +54,10 @@ export const EmployeesView: React.FC = () => {
   const [assigningEmployee, setAssigningEmployee] = useState<Employee | null>(null);
   const [passwordResetEmployee, setPasswordResetEmployee] = useState<Employee | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [giftEmployee, setGiftEmployee] = useState<Employee | null>(null);
+  const [giftType, setGiftType] = useState<GiftType>('BONUS');
+  const [giftPoints, setGiftPoints] = useState(10);
+  const [giftReason, setGiftReason] = useState('');
 
   // New employee state
   const [name, setName] = useState('');
@@ -388,6 +396,14 @@ export const EmployeesView: React.FC = () => {
                     <span className="text-slate-500">Faol vazifalar:</span>
                     <span className="font-bold text-slate-800">{empTasks.length} ta</span>
                   </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                    <span className="text-slate-500 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Reyting:</span>
+                    <span className="font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">{emp.rating || 0} ball</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Sovgalar:</span>
+                    <span className="font-bold text-slate-800">{emp.giftsReceived || 0} ta</span>
+                  </div>
                 </div>
 
                 {/* Progress bar */}
@@ -438,6 +454,14 @@ export const EmployeesView: React.FC = () => {
 
                   {isSuperAdmin && emp.role !== 'SUPER_ADMIN' && (
                     <>
+                      <button
+                        onClick={() => setGiftEmployee(emp)}
+                        className="p-2 rounded-xl text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition-all cursor-pointer"
+                        title="Sovga berish"
+                      >
+                        <Gift className="w-4 h-4" />
+                      </button>
+
                       <button
                         onClick={() => setEditingEmployee(emp)}
                         className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer"
@@ -775,6 +799,93 @@ export const EmployeesView: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
                 >
                   Parolni Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Gift Modal */}
+      {giftEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold">
+                  <Gift className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Sovga Berish</h3>
+                  <p className="text-[10px] text-slate-400">{giftEmployee.name} ga sovga berish</p>
+                </div>
+              </div>
+              <button onClick={() => setGiftEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              giveGift(giftEmployee.id, giftType, giftReason, giftPoints, giftReason);
+              setGiftEmployee(null);
+              setGiftReason('');
+              setGiftPoints(10);
+            }} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">Sovga turi</label>
+                <select
+                  value={giftType}
+                  onChange={(e) => setGiftType(e.target.value as GiftType)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none font-medium"
+                >
+                  <option value="BONUS">Bonus</option>
+                  <option value="QOSHIMCHA_TATIL">Qo'shimcha Tatil</option>
+                  <option value="PREMIYA">Premiya</option>
+                  <option value="RAHMAT">Rahmat</option>
+                  <option value="YILDAVY_SOVGA">Yildavoy Sovga</option>
+                  <option value="BOSHQA">Boshqa</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">Ballar miqdori</label>
+                <input
+                  type="number"
+                  value={giftPoints}
+                  onChange={(e) => setGiftPoints(parseInt(e.target.value) || 0)}
+                  min="1"
+                  max="100"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-purple-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">Sababi</label>
+                <input
+                  type="text"
+                  value={giftReason}
+                  onChange={(e) => setGiftReason(e.target.value)}
+                  placeholder="Masalan: Yaxshi ish uchun"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-purple-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setGiftEmployee(null)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 cursor-pointer"
+                >
+                  Sovga Berish
                 </button>
               </div>
             </form>

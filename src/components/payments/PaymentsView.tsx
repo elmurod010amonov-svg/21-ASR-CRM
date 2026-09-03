@@ -134,7 +134,7 @@ export const PaymentsView: React.FC = () => {
                   </td>
                   <td className="p-3.5 text-right">
                     <div className="flex gap-2 justify-end">
-                      {item.debtAmount > 0 && currentUser.role === 'SUPER_ADMIN' && (
+                      {item.debtAmount > 0 && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR') && (
                         <button
                           onClick={() => generateDebtAct(item.clientId)}
                           className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs flex items-center gap-1"

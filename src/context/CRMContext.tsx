@@ -1339,18 +1339,7 @@ Imzo
   const resolveIssue = (id: string, notes?: string, proof?: ProofAttachment) => {
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
-    
-    // Majburiy isbot tekshirish
-    if (!proof) {
-      addNotification({
-        type: 'SYSTEM',
-        title: 'Xatolik',
-        message: 'Kamchilikni tuzatish uchun isbot (JPG yoki PDF) yuklash majburiy.',
-        linkModule: 'Kamchiliklar'
-      });
-      return;
-    }
-    
+
     setIssues(prev => prev.map(i => {
       if (i.id === id) {
         const updated: IssueRecord = {
@@ -1450,18 +1439,7 @@ Imzo
   const completeTask = (taskId: string, proof?: ProofAttachment, notes?: string) => {
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
-    
-    // Majburiy isbot tekshirish
-    if (!proof) {
-      addNotification({
-        type: 'SYSTEM',
-        title: 'Xatolik',
-        message: 'Vazifani bajarilgan deb belgilash uchun isbot (JPG yoki PDF) yuklash majburiy.',
-        linkModule: 'Vazifalar'
-      });
-      return;
-    }
-    
+
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
         const updated: TaskRecord = {
