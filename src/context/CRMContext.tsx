@@ -25,7 +25,9 @@ import {
   IssueStatus,
   TaskStatus,
   KameralStatus,
-  ProofAttachment
+  ProofAttachment,
+  Gift,
+  GiftType
 } from '../types';
 import {
   INITIAL_EMPLOYEES,
@@ -47,12 +49,7 @@ import {
 import { scanDatabase, autoFixDatabase } from '../utils/dbScanner';
 
 interface CRMContextType {
-  // Mode & Health state
-  isDemoMode: boolean;
-  setIsDemoMode: (isDemo: boolean) => void;
-  toggleDemoMode: () => void;
-  switchToRealMode: () => void;
-  switchToDemoMode: () => void;
+  // Health state
   scanResult: DatabaseScanResult | null;
   isScannerModalOpen: boolean;
   setIsScannerModalOpen: (open: boolean) => void;
@@ -77,6 +74,7 @@ interface CRMContextType {
   chatMessages: ChatMessage[];
   auditLogs: AuditLogRecord[];
   notifications: NotificationItem[];
+  gifts: Gift[];
   activeTab: string;
   selectedClientIdForModal: string | null;
   globalSearchOpen: boolean;
@@ -144,6 +142,10 @@ interface CRMContextType {
   acceptTask: (taskId: string) => void;
   completeTask: (taskId: string, proof?: ProofAttachment, notes?: string) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus, notes?: string, proof?: ProofAttachment) => void;
+
+  // Gifts
+  giveGift: (employeeId: string, giftType: GiftType, description: string, points: number, reason: string) => void;
+  deleteGift: (giftId: string) => void;
   
   // Chat & Communication
   sendChatMessage: (roomId: string, text: string, attachment?: any, isVoice?: boolean) => void;
@@ -163,32 +165,19 @@ interface CRMContextType {
   updateUserPassword: (employeeId: string, password: string) => boolean;
   loginUser: (identifier: string, password: string) => boolean;
   logAudit: (action: string, objectType: string, objectId: string, objectName: string, oldValue?: string, newValue?: string) => void;
-  resetToDemoData: () => void;
-  clearDemoClients: () => void;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
-const DEMO_STORAGE_PREFIX = '21ASR_CRM_DEMO_V1';
-const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V2'; // V2: real mode starts without seeded test clients/services
-const MODE_STORAGE_KEY = '21ASR_CRM_ACTIVE_MODE';
+const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V2';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Mode state: default to true (Demo), but respect user preference
-  const [isDemoMode, setIsDemoModeState] = useState<boolean>(() => {
-    const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
-    return savedMode !== null ? savedMode === 'DEMO' : false; // If user requested to turn off demo, default to Real mode!
-  });
-
   const [isScannerModalOpen, setIsScannerModalOpen] = useState<boolean>(false);
   const [scanResult, setScanResult] = useState<DatabaseScanResult | null>(null);
 
-  const getPrefix = useCallback((demo: boolean) => demo ? DEMO_STORAGE_PREFIX : REAL_STORAGE_PREFIX, []);
-
   // Helper loader for initial state with automatic stale-data sanitization
-  const loadData = <T,>(key: string, demoFallback: T, realFallback: T): T => {
-    const prefix = getPrefix(isDemoMode);
-    const saved = localStorage.getItem(`${prefix}_${key}`);
+  const loadData = <T,>(key: string, fallback: T): T => {
+    const saved = localStorage.getItem(`${REAL_STORAGE_PREFIX}_${key}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -197,7 +186,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const dummyNames = ['Anvar Aliyev', 'Jamshid Valiyev', 'Dilnoza Karimova', 'Nilufar Umarova', 'Sardorbek Rahimov'];
           const cleaned = parsed.filter((e: any) => !dummyNames.includes(e.name) && (e.id === 'emp-1' || e.id.startsWith('emp-')));
           if (cleaned.length === 0) {
-            return (isDemoMode ? demoFallback : realFallback);
+            return fallback;
           }
           return cleaned as T;
         }
@@ -206,11 +195,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error(`Error parsing ${key}`, e);
       }
     }
-    return isDemoMode ? demoFallback : realFallback;
+    return fallback;
   };
 
   const [employees, setEmployees] = useState<Employee[]>(() => 
-    loadData('employees', INITIAL_EMPLOYEES, INITIAL_EMPLOYEES)
+    loadData('employees', INITIAL_EMPLOYEES)
   );
 
   // Simple in-memory credential store persisted to localStorage (employeeId -> password)
@@ -259,11 +248,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }));
 
   const [clients, setClients] = useState<Client[]>(() => 
-    loadData('clients', INITIAL_CLIENTS, [])
+    loadData('clients', INITIAL_CLIENTS)
   );
 
   const [periods, setPeriods] = useState<ReportPeriod[]>(() => 
-    loadData('periods', INITIAL_PERIODS, INITIAL_PERIODS)
+    loadData('periods', INITIAL_PERIODS)
   );
 
   const [currentPeriod, setCurrentPeriod] = useState<ReportPeriod>(() => 
@@ -271,51 +260,55 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const [taxReports, setTaxReports] = useState<TaxReport[]>(() => 
-    loadData('taxReports', INITIAL_TAX_REPORTS, [])
+    loadData('taxReports', INITIAL_TAX_REPORTS)
   );
 
   const [accounting1C, setAccounting1C] = useState<Accounting1CRecord[]>(() => 
-    loadData('accounting1C', INITIAL_ACCOUNTING_1C, [])
+    loadData('accounting1C', INITIAL_ACCOUNTING_1C)
   );
 
   const [payments, setPayments] = useState<PaymentRecord[]>(() => 
-    loadData('payments', INITIAL_PAYMENTS, [])
+    loadData('payments', INITIAL_PAYMENTS)
   );
 
   const [letters, setLetters] = useState<LetterRecord[]>(() => 
-    loadData('letters', INITIAL_LETTERS, [])
+    loadData('letters', INITIAL_LETTERS)
   );
 
   const [kameral, setKameral] = useState<KameralAudit[]>(() => 
-    loadData('kameral', INITIAL_KAMERAL, [])
+    loadData('kameral', INITIAL_KAMERAL)
   );
 
   const [issues, setIssues] = useState<IssueRecord[]>(() => 
-    loadData('issues', INITIAL_ISSUES, [])
+    loadData('issues', INITIAL_ISSUES)
   );
 
   const [tasks, setTasks] = useState<TaskRecord[]>(() => 
-    loadData('tasks', INITIAL_TASKS, [])
+    loadData('tasks', INITIAL_TASKS)
   );
 
   const [reminders, setReminders] = useState<AutomaticReminder[]>(() => 
-    loadData('reminders', INITIAL_REMINDERS, [])
+    loadData('reminders', INITIAL_REMINDERS)
   );
 
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => 
-    loadData('chatRooms', INITIAL_CHAT_ROOMS, INITIAL_CHAT_ROOMS)
+    loadData('chatRooms', INITIAL_CHAT_ROOMS)
   );
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => 
-    loadData('chatMessages', INITIAL_CHAT_MESSAGES, [])
+    loadData('chatMessages', INITIAL_CHAT_MESSAGES)
   );
 
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(() => 
-    loadData('auditLogs', INITIAL_AUDIT_LOGS, [])
+    loadData('auditLogs', INITIAL_AUDIT_LOGS)
   );
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => 
-    loadData('notifications', INITIAL_NOTIFICATIONS, [])
+    loadData('notifications', INITIAL_NOTIFICATIONS)
+  );
+
+  const [gifts, setGifts] = useState<Gift[]>(() => 
+    loadData('gifts', [])
   );
 
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
@@ -343,10 +336,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem(MODE_STORAGE_KEY, isDemoMode ? 'DEMO' : 'REAL');
-  }, [isDemoMode]);
 
   // Sync debt act template to localStorage
   useEffect(() => {
@@ -355,59 +344,61 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
   }, [debtActTemplate]);
 
-  const prefix = getPrefix(isDemoMode);
-
   useEffect(() => {
-    localStorage.setItem(`${prefix}_employees`, JSON.stringify(employees));
-  }, [employees, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_employees`, JSON.stringify(employees));
+  }, [employees]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${prefix}_clients`, JSON.stringify(clients));
+      localStorage.setItem(`${REAL_STORAGE_PREFIX}_clients`, JSON.stringify(clients));
     } catch (err) {
       console.error('Clients saqlanmadi (localStorage):', err);
     }
-  }, [clients, prefix]);
+  }, [clients]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_taxReports`, JSON.stringify(taxReports));
-  }, [taxReports, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_taxReports`, JSON.stringify(taxReports));
+  }, [taxReports]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_accounting1C`, JSON.stringify(accounting1C));
-  }, [accounting1C, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_accounting1C`, JSON.stringify(accounting1C));
+  }, [accounting1C]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_payments`, JSON.stringify(payments));
-  }, [payments, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_payments`, JSON.stringify(payments));
+  }, [payments]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_letters`, JSON.stringify(letters));
-  }, [letters, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_letters`, JSON.stringify(letters));
+  }, [letters]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_kameral`, JSON.stringify(kameral));
-  }, [kameral, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_kameral`, JSON.stringify(kameral));
+  }, [kameral]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_issues`, JSON.stringify(issues));
-  }, [issues, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_issues`, JSON.stringify(issues));
+  }, [issues]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_tasks`, JSON.stringify(tasks));
-  }, [tasks, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_tasks`, JSON.stringify(tasks));
+  }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_chatMessages`, JSON.stringify(chatMessages));
-  }, [chatMessages, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_chatMessages`, JSON.stringify(chatMessages));
+  }, [chatMessages]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_auditLogs`, JSON.stringify(auditLogs));
-  }, [auditLogs, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_auditLogs`, JSON.stringify(auditLogs));
+  }, [auditLogs]);
 
   useEffect(() => {
-    localStorage.setItem(`${prefix}_notifications`, JSON.stringify(notifications));
-  }, [notifications, prefix]);
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_notifications`, JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_gifts`, JSON.stringify(gifts));
+  }, [gifts]);
 
   // Helper to log audit
   const logAudit = (action: string, objectType: string, objectId: string, objectName: string, oldValue?: string, newValue?: string) => {
@@ -441,56 +432,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  // Switch to Real mode
-  const switchToRealMode = () => {
-    setIsDemoModeState(false);
-    localStorage.setItem(MODE_STORAGE_KEY, 'REAL');
-    
-    // Check if real database exists, if not initialize from current or clean
-    const realPrefix = REAL_STORAGE_PREFIX;
-    const realClientsRaw = localStorage.getItem(`${realPrefix}_clients`);
-    if (!realClientsRaw) {
-      // Seed real storage with current dataset and mark as real
-      localStorage.setItem(`${realPrefix}_clients`, JSON.stringify(clients));
-      localStorage.setItem(`${realPrefix}_taxReports`, JSON.stringify(taxReports));
-      localStorage.setItem(`${realPrefix}_accounting1C`, JSON.stringify(accounting1C));
-      localStorage.setItem(`${realPrefix}_payments`, JSON.stringify(payments));
-      localStorage.setItem(`${realPrefix}_letters`, JSON.stringify(letters));
-      localStorage.setItem(`${realPrefix}_kameral`, JSON.stringify(kameral));
-      localStorage.setItem(`${realPrefix}_issues`, JSON.stringify(issues));
-      localStorage.setItem(`${realPrefix}_tasks`, JSON.stringify(tasks));
-      localStorage.setItem(`${realPrefix}_employees`, JSON.stringify(employees));
-    }
-
-    logAudit('Rejim almashtirildi', 'System', 'MODE', 'Real Rejimga o\'tildi (Demo o\'chirildi)', 'DEMO', 'REAL');
-    addNotification({
-      type: 'AI_ALERT',
-      title: '🟢 Real Rejim Faollashtirildi',
-      message: 'Demo rejim o\'chirildi. Barcha kiritilayotgan korxonalar va hisobotlar real ishchi bazada saqlanmoqda.',
-      linkModule: 'Dashboard',
-    });
-  };
-
-  // Switch to Demo mode
-  const switchToDemoMode = () => {
-    setIsDemoModeState(true);
-    localStorage.setItem(MODE_STORAGE_KEY, 'DEMO');
-    logAudit('Rejim almashtirildi', 'System', 'MODE', 'Demo Rejimga o\'tildi', 'REAL', 'DEMO');
-    addNotification({
-      type: 'AI_ALERT',
-      title: '🧪 Demo Rejim Faollashtirildi',
-      message: 'Siz hozirda test va namuna korxonalari bilan ishlayapsiz.',
-      linkModule: 'Dashboard',
-    });
-  };
-
-  const toggleDemoMode = () => {
-    if (isDemoMode) {
-      switchToRealMode();
-    } else {
-      switchToDemoMode();
-    }
-  };
 
   // Run Database Scanner
   const runDatabaseScan = (): DatabaseScanResult => {
@@ -1026,7 +967,7 @@ Imzo
     });
   };
 
-  const updateTaxReportStatus = (reportId: string, status: ReportStatus, notes?: string, proof?: ProofAttachment) => {
+  const updateTaxReportStatus = (reportId: string, status: ReportStatus, proof?: ProofAttachment, notes?: string) => {
     const now = new Date();
     const formattedDate = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -1039,9 +980,7 @@ Imzo
           submittedAt: status === 'TOPSHIRILDI' ? formattedDate : undefined,
           submittedBy: status === 'TOPSHIRILDI' ? (r.submittedBy || currentUser.name) : (status === 'JARAYONDA' || status === 'TOPSHIRILMAGAN' ? undefined : r.submittedBy),
           notes: notes !== undefined ? notes : r.notes,
-          proofAttachment: status === 'TOPSHIRILDI' 
-            ? (proof || r.proofAttachment) 
-            : (status === 'JARAYONDA' || status === 'TOPSHIRILMAGAN' ? undefined : r.proofAttachment),
+          proofAttachment: proof !== undefined ? proof : r.proofAttachment,
         };
         logAudit('Soliq hisoboti holati o\'zgartirildi', 'TaxReport', reportId, `${r.clientName} (${r.reportType})`, oldStatus, status);
         return updated;
@@ -1062,9 +1001,7 @@ Imzo
           submittedAt: status === 'TOPSHIRILDI' ? formattedDate : undefined,
           submittedBy: status === 'TOPSHIRILDI' ? (r.submittedBy || currentUser.name) : (status === 'JARAYONDA' || status === 'TOPSHIRILMAGAN' ? undefined : r.submittedBy),
           notes: notes !== undefined ? notes : r.notes,
-          proofAttachment: status === 'TOPSHIRILDI' 
-            ? (proof || r.proofAttachment) 
-            : (status === 'JARAYONDA' || status === 'TOPSHIRILMAGAN' ? undefined : r.proofAttachment),
+          proofAttachment: proof !== undefined ? proof : r.proofAttachment,
         };
         return updated;
       }
@@ -1369,6 +1306,18 @@ Imzo
   const resolveIssue = (id: string, notes?: string, proof?: ProofAttachment) => {
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
+    
+    // Majburiy isbot tekshirish
+    if (!proof) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Kamchilikni tuzatish uchun isbot (JPG yoki PDF) yuklash majburiy.',
+        linkModule: 'Kamchiliklar'
+      });
+      return;
+    }
+    
     setIssues(prev => prev.map(i => {
       if (i.id === id) {
         const updated: IssueRecord = {
@@ -1376,7 +1325,7 @@ Imzo
           status: 'TUZATILDI',
           resolvedAt: formatted,
           notes: notes || i.notes,
-          proofAttachment: proof || i.proofAttachment,
+          proofAttachment: proof,
         };
         logAudit('Kamchilik tuzatildi deb belgilandi', 'Issue', id, `${i.clientName} - ${i.type}`, 'OCHIQ', 'TUZATILDI');
         return updated;
@@ -1444,16 +1393,29 @@ Imzo
   const completeTask = (taskId: string, proof?: ProofAttachment, notes?: string) => {
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
+    
+    // Majburiy isbot tekshirish
+    if (!proof) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Vazifani bajarilgan deb belgilash uchun isbot (JPG yoki PDF) yuklash majburiy.',
+        linkModule: 'Vazifalar'
+      });
+      return;
+    }
+    
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
-        logAudit('Topshiriq bajarildi', 'Task', taskId, t.title, t.status, 'BAJARILDI');
-        return {
+        const updated: TaskRecord = {
           ...t,
           status: 'BAJARILDI',
           completedAt: formatted,
           notes: notes || t.notes,
-          proofAttachment: proof || t.proofAttachment,
+          proofAttachment: proof,
         };
+        logAudit('Topshiriq bajarildi', 'Task', taskId, t.title, t.status, 'BAJARILDI');
+        return updated;
       }
       return t;
     }));
@@ -1475,6 +1437,105 @@ Imzo
       }
       return t;
     }));
+  };
+
+  const giveGift = (employeeId: string, giftType: GiftType, description: string, points: number, reason: string) => {
+    if (currentUser.role !== 'DIREKTOR' && currentUser.role !== 'NAZORATCHI') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat DIREKTOR va NAZORATCHI sovga bera oladi.',
+        linkModule: 'Xodimlar'
+      });
+      return;
+    }
+
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Hodim topilmadi.',
+        linkModule: 'Xodimlar'
+      });
+      return;
+    }
+
+    const now = new Date();
+    const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const newGift: Gift = {
+      id: `gift-${Date.now()}`,
+      employeeId,
+      employeeName: employee.name,
+      giftType,
+      description,
+      points,
+      givenBy: currentUser.name,
+      givenAt: formatted,
+      reason,
+    };
+
+    setGifts(prev => [newGift, ...prev]);
+
+    setEmployees(prev => prev.map(e => {
+      if (e.id === employeeId) {
+        const updatedRating = (e.rating || 0) + points;
+        const updatedGifts = (e.giftsReceived || 0) + 1;
+        return {
+          ...e,
+          rating: updatedRating,
+          giftsReceived: updatedGifts,
+        };
+      }
+      return e;
+    }));
+
+    logAudit('Sovga berildi', 'Gift', newGift.id, `${employee.name} - ${giftType}`, undefined, `+${points} ball`);
+    addNotification({
+      type: 'SYSTEM',
+      title: '🎁 Sovga berildi',
+      message: `${employee.name} ga ${giftType} sovgasi berildi (+${points} ball).`,
+      linkModule: 'Xodimlar'
+    });
+  };
+
+  const deleteGift = (giftId: string) => {
+    const gift = gifts.find(g => g.id === giftId);
+    if (!gift) return;
+
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN sovga o\'chira oladi.',
+        linkModule: 'Xodimlar'
+      });
+      return;
+    }
+
+    setGifts(prev => prev.filter(g => g.id !== giftId));
+
+    setEmployees(prev => prev.map(e => {
+      if (e.id === gift.employeeId) {
+        const updatedRating = Math.max(0, (e.rating || 0) - gift.points);
+        const updatedGifts = Math.max(0, (e.giftsReceived || 0) - 1);
+        return {
+          ...e,
+          rating: updatedRating,
+          giftsReceived: updatedGifts,
+        };
+      }
+      return e;
+    }));
+
+    logAudit('Sovga o\'chirildi', 'Gift', giftId, `${gift.employeeName} - ${gift.giftType}`, `+${gift.points} ball`, 'O\'chirildi');
+    addNotification({
+      type: 'SYSTEM',
+      title: 'Sovga o\'chirildi',
+      message: `${gift.employeeName} dan ${gift.giftType} sovgasi o\'chirildi.`,
+      linkModule: 'Xodimlar'
+    });
   };
 
   const sendChatMessage = (roomId: string, text: string, attachment?: any, isVoice?: boolean) => {
@@ -1685,19 +1746,18 @@ Imzo
     setNotifications(INITIAL_NOTIFICATIONS);
     setUserCredentials({});
     
-    const curPrefix = getPrefix(isDemoMode);
-    localStorage.removeItem(`${curPrefix}_employees`);
-    localStorage.removeItem(`${curPrefix}_clients`);
-    localStorage.removeItem(`${curPrefix}_taxReports`);
-    localStorage.removeItem(`${curPrefix}_accounting1C`);
-    localStorage.removeItem(`${curPrefix}_payments`);
-    localStorage.removeItem(`${curPrefix}_letters`);
-    localStorage.removeItem(`${curPrefix}_kameral`);
-    localStorage.removeItem(`${curPrefix}_issues`);
-    localStorage.removeItem(`${curPrefix}_tasks`);
-    localStorage.removeItem(`${curPrefix}_chatMessages`);
-    localStorage.removeItem(`${curPrefix}_auditLogs`);
-    localStorage.removeItem(`${curPrefix}_notifications`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_employees`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_clients`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_taxReports`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_accounting1C`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_payments`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_letters`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_kameral`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_issues`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_tasks`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_chatMessages`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_auditLogs`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_notifications`);
     localStorage.removeItem('21ASR_USER_CREDENTIALS');
   };
 
@@ -1719,6 +1779,8 @@ Imzo
       issuesCount: 0,
       lettersCount: 0,
       accounting1CCount: 0,
+      rating: 0,
+      giftsReceived: 0,
     };
 
     setCurrentUser(guest);
@@ -1732,36 +1794,9 @@ Imzo
     });
   };
 
-    const clearDemoClients = () => {
-      // Restore initial demo clients and related datasets
-      setClients(INITIAL_CLIENTS);
-      setTaxReports(INITIAL_TAX_REPORTS);
-      setAccounting1C(INITIAL_ACCOUNTING_1C);
-      setPayments(INITIAL_PAYMENTS);
-
-      // Remove demo-specific storage keys
-      localStorage.removeItem(`${DEMO_STORAGE_PREFIX}_clients`);
-      localStorage.removeItem(`${DEMO_STORAGE_PREFIX}_taxReports`);
-      localStorage.removeItem(`${DEMO_STORAGE_PREFIX}_accounting1C`);
-      localStorage.removeItem(`${DEMO_STORAGE_PREFIX}_payments`);
-
-      logAudit('Demo mijozlar o\'chirildi', 'Admin', `clear-demo-${Date.now()}`, 'Demo mijozlar qayta o\'rnatildi', undefined, 'INITIAL set');
-      addNotification({
-        type: 'SYSTEM',
-        title: '🧹 Demo mijozlar o\'chirildi',
-        message: 'Demo rejimida kiritilgan mijozlar o\'chirildi va boshlang\'ich demo ma\'lumotlariga qaytildi.',
-        linkModule: 'Mijozlar',
-      });
-    };
-
   return (
     <CRMContext.Provider
       value={{
-        isDemoMode,
-        setIsDemoMode: (val: boolean) => val ? switchToDemoMode() : switchToRealMode(),
-        toggleDemoMode,
-        switchToRealMode,
-        switchToDemoMode,
         scanResult,
         isScannerModalOpen,
         setIsScannerModalOpen,
@@ -1785,6 +1820,7 @@ Imzo
         chatMessages,
         auditLogs,
         notifications,
+        gifts,
         activeTab,
         selectedClientIdForModal,
         globalSearchOpen,
@@ -1798,6 +1834,8 @@ Imzo
         logoutUser,
         updateDebtActTemplate,
         generateDebtAct,
+        giveGift,
+        deleteGift,
         addClient,
         updateClient,
         deleteClient,
@@ -1845,8 +1883,6 @@ Imzo
         updateEmployeeAvatar,
         logAudit,
         addNotification,
-        resetToDemoData,
-        clearDemoClients,
       }}
     >
       {children}

@@ -12,6 +12,20 @@ export interface UserPermission {
   ai_advanced_tools: boolean;
 }
 
+export type GiftType = 'FAXRIY_YORLIQ' | 'PUL_MUKOFOTI' | 'TOVAR_SOVGA' | 'QOSHIMCHA_TATIL' | 'MALAKA_OSHIRISH' | 'BOSHQA';
+
+export interface Gift {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  giftType: GiftType;
+  description: string;
+  points: number; // Reyting ballari
+  givenBy: string; // Kim berdi (DIREKTOR yoki NAZORATCHI)
+  givenAt: string;
+  reason: string;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -29,6 +43,8 @@ export interface Employee {
   issuesCount: number;
   lettersCount: number;
   accounting1CCount: number;
+  rating: number; // Sovga ballari asosida hisoblangan reyting
+  giftsReceived: number; // Qabul qilingan sovgalar soni
 }
 
 export type ClientType = 'YATT' | 'YURIDIK';

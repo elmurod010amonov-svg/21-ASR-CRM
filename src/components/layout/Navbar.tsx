@@ -10,11 +10,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Clock, 
-  RefreshCw,
-  Activity,
-  Zap,
-  Wrench,
-  Database
+  Activity
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { UserRole } from '../../types';
@@ -30,16 +26,10 @@ export const Navbar: React.FC = () => {
     markNotificationAsRead, 
     markAllNotificationsAsRead, 
     setActiveTab,
-    resetToDemoData,
-    isDemoMode,
     logoutUser,
-    switchToRealMode,
-    switchToDemoMode,
-    toggleDemoMode,
     scanResult,
     runDatabaseScan,
     updateEmployeeAvatar,
-
     setIsScannerModalOpen
   } = useCRM();
 
@@ -108,33 +98,8 @@ export const Navbar: React.FC = () => {
         </button>
       </div>
 
-      {/* Right Controls: Demo/Real Toggle, DB Scanner, Period, Role Switcher, Notifications, Profile */}
+      {/* Right Controls: DB Scanner, Period, Role Switcher, Notifications, Profile */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Demo Mode / Real Mode Switch Button (Key User Request) */}
-        <div className="flex items-center">
-          {isDemoMode ? (
-            <button
-              onClick={switchToRealMode}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer animate-pulse"
-              title="Demo rejimni o'chirish va real ishchi bazaga o'tish"
-            >
-              <Zap className="w-3.5 h-3.5 fill-current" />
-              <span className="hidden sm:inline">Demo O'chirish:</span>
-              <span>Reallikka O'tish</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsScannerModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-extrabold text-xs shadow-2xs hover:bg-emerald-100 transition-all cursor-pointer"
-              title="Real ishchi rejim faol. Bazani skanerlash uchun bosing."
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
-              <span className="hidden sm:inline">🟢 Real Baza:</span>
-              <span className="text-[11px] font-mono">Faol</span>
-            </button>
-          )}
-        </div>
-
         {/* Database Health Scanner Trigger Button */}
         <button
           onClick={() => {
@@ -378,24 +343,6 @@ export const Navbar: React.FC = () => {
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-medium text-[11px]"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-slate-500" /> Tizim Sozlamalari
-                </button>
-                <button
-                  onClick={() => {
-                    toggleDemoMode();
-                    setProfileDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-medium text-[11px]"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-600" /> {isDemoMode ? "Real Rejimga O'tish" : "Demo Rejimga O'tish"}
-                </button>
-                <button
-                  onClick={() => {
-                    resetToDemoData();
-                    setProfileDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-amber-700 hover:bg-amber-50 cursor-pointer font-medium text-[11px]"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-600" /> Namuna ma'lumotlarni qayta tiklash
                 </button>
                 <button
                   onClick={() => {
