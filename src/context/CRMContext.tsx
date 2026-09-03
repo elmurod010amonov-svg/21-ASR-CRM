@@ -554,17 +554,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const switchUserRole = (role: UserRole, employeeId?: string) => {
-    // Faqat SUPER_ADMIN boshqa rollarga o'tishi mumkin
-    if (currentUser.role !== 'SUPER_ADMIN') {
-      addNotification({
-        type: 'SYSTEM',
-        title: 'Ruxsat yo\'q',
-        message: 'Faqat SUPER_ADMIN boshqa rollarga o\'tishi mumkin.',
-        linkModule: 'Dashboard'
-      });
-      return;
-    }
-
+    // Barcha hodimlar rollarga o'tishi mumkin (shared data model)
     let targetEmployee = employees.find(e => employeeId ? e.id === employeeId : e.role === role);
     if (!targetEmployee) {
       targetEmployee = employees.find(e => e.role === role) || employees[0];
@@ -692,9 +682,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteClient = (id: string) => {
     const target = clients.find(c => c.id === id);
     if (!target) return;
-    const allowedRoles = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'];
+    const allowedRoles = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER'];
     if (!allowedRoles.includes(currentUser.role) || currentUser.id === 'guest') {
-      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun faqat SUPER_ADMIN, DIREKTOR, BUXGALTER yoki NAZORATCHI ruxsatiga ega bo\'ladi.', linkModule: 'Mijozlar' });
+      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun faqat SUPER_ADMIN, DIREKTOR yoki BUXGALTER ruxsatiga ega bo\'lish kerak.', linkModule: 'Mijozlar' });
       return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
