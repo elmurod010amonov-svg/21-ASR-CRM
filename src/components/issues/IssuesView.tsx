@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  AlertOctagon, 
-  Search, 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
-  X, 
+import {
+  AlertOctagon,
+  Search,
+  Plus,
+  CheckCircle2,
+  Clock,
+  X,
   FileCheck,
   FileText,
   Image as ImageIcon,
   Eye,
   AlertTriangle,
   Calendar,
-  User
+  User,
+  Trash2
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { IssueStatus, IssueRecord, ProofAttachment } from '../../types';
@@ -20,14 +21,15 @@ import { ProofUploadModal } from '../common/ProofUploadModal';
 import { ProofViewerModal } from '../common/ProofViewerModal';
 
 export const IssuesView: React.FC = () => {
-  const { 
-    issues, 
-    updateIssueStatus, 
-    resolveIssue, 
-    createIssue, 
-    clients, 
-    currentUser, 
-    openClientCard 
+  const {
+    issues,
+    updateIssueStatus,
+    resolveIssue,
+    createIssue,
+    deleteIssue,
+    clients,
+    currentUser,
+    openClientCard
   } = useCRM();
 
   const [search, setSearch] = useState('');
@@ -201,6 +203,16 @@ export const IssuesView: React.FC = () => {
                       className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
                     >
                       Qayta ochish
+                    </button>
+                  )}
+
+                  {currentUser.role === 'SUPER_ADMIN' && (
+                    <button
+                      onClick={() => deleteIssue(issue.id)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      O'chirish
                     </button>
                   )}
                 </div>

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  CheckSquare, 
-  Search, 
-  Plus, 
-  Clock, 
-  UserCheck, 
-  AlertCircle, 
-  CheckCircle2, 
-  X, 
+import {
+  CheckSquare,
+  Search,
+  Plus,
+  Clock,
+  UserCheck,
+  AlertCircle,
+  CheckCircle2,
+  X,
   FileCheck,
   FileText,
   Image as ImageIcon,
@@ -15,7 +15,8 @@ import {
   Eye,
   AlertTriangle,
   Calendar,
-  User
+  User,
+  Trash2
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { TaskStatus, TaskPriority, TaskRecord, ProofAttachment } from '../../types';
@@ -23,15 +24,16 @@ import { ProofUploadModal } from '../common/ProofUploadModal';
 import { ProofViewerModal } from '../common/ProofViewerModal';
 
 export const TasksView: React.FC = () => {
-  const { 
-    tasks, 
-    updateTaskStatus, 
+  const {
+    tasks,
+    updateTaskStatus,
     completeTask,
-    createTask, 
-    employees, 
-    clients, 
-    currentUser, 
-    openClientCard 
+    createTask,
+    deleteTask,
+    employees,
+    clients,
+    currentUser,
+    openClientCard
   } = useCRM();
 
   const [search, setSearch] = useState('');
@@ -254,6 +256,16 @@ export const TasksView: React.FC = () => {
                       className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
                     >
                       Qayta ochish
+                    </button>
+                  )}
+
+                  {currentUser.role === 'SUPER_ADMIN' && (
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      O'chirish
                     </button>
                   )}
                 </div>

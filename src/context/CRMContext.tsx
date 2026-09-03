@@ -124,6 +124,7 @@ interface CRMContextType {
   updateLetterStatus: (letterId: string, status: any, replyDate?: string, notes?: string) => void;
   createLetter: (letterData: Omit<LetterRecord, 'id'>) => void;
   addLetter: (letterData: Omit<LetterRecord, 'id'>) => void;
+  deleteLetter: (id: string) => void;
   
   // Kameral
   createKameral: (auditData: Omit<KameralAudit, 'id'>) => void;
@@ -135,6 +136,7 @@ interface CRMContextType {
   addIssue: (issueData: Omit<IssueRecord, 'id' | 'createdAt'>) => void;
   resolveIssue: (id: string, notes?: string, proof?: ProofAttachment) => void;
   updateIssueStatus: (id: string, status: IssueStatus, notes?: string, proof?: ProofAttachment) => void;
+  deleteIssue: (id: string) => void;
   
   // Tasks
   createTask: (taskData: Omit<TaskRecord, 'id' | 'createdAt' | 'acceptedBy'>) => void;
@@ -142,6 +144,7 @@ interface CRMContextType {
   acceptTask: (taskId: string) => void;
   completeTask: (taskId: string, proof?: ProofAttachment, notes?: string) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus, notes?: string, proof?: ProofAttachment) => void;
+  deleteTask: (id: string) => void;
 
   // Gifts
   giveGift: (employeeId: string, giftType: GiftType, description: string, points: number, reason: string) => void;
@@ -900,22 +903,27 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Generate debt act content using template
     const today = new Date().toLocaleDateString('uz-UZ');
-    let actContent = debtActTemplate || `
+    
+    // Default template if none provided
+    const defaultTemplate = `
 QARZDORLIK AKTI
 
-${today} yil
+{sana} yil
 
-Korxona: ${client.name}
-STIR: ${client.stir}
-Manzil: ${client.address || 'Ko\'rsatilmagan'}
+Korxona: {korxona_nomi}
+STIR: {stir}
+Manzil: {manzil}
 
-Qarzdorlik miqdori: ${payment.debtAmount.toLocaleString()} so'm
-Oylik to'lov: ${payment.monthlyFee.toLocaleString()} so'm
-To'langan: ${payment.paidAmount.toLocaleString()} so'm
+Qarzdorlik miqdori: {qarz_miqdori}
+Oylik to'lov: {oylik_tolov}
+To'langan: {tolangan}
 
 _________________________
 Imzo
 `;
+
+    // Use custom template or default
+    let actContent = debtActTemplate || defaultTemplate;
 
     // Replace placeholders in template
     actContent = actContent
@@ -1250,10 +1258,35 @@ Imzo
     logAudit('Yangi xat kiritildi', 'Letter', newLetter.id, `${newLetter.clientName} - ${newLetter.letterNumber}`);
     addNotification({
       type: 'LETTER',
-      title: 'Yangi xat keldi',
-      message: `${newLetter.clientName} nomiga yangi xat kelib tushdi (${newLetter.type}).`,
+      title: 'Yangi xat kiritildi',
+      message: `${newLetter.clientName}: ${newLetter.letterNumber}`,
       linkModule: 'Xatlar',
       relatedId: newLetter.id,
+    });
+  };
+
+  const deleteLetter = (id: string) => {
+    const target = letters.find(l => l.id === id);
+    if (!target) return;
+
+    // Faqat SUPER_ADMIN o'chira oladi
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN xatlarni o\'chira oladi.',
+        linkModule: 'Xatlar'
+      });
+      return;
+    }
+
+    setLetters(prev => prev.filter(l => l.id !== id));
+    logAudit('Xat o\'chirildi', 'Letter', id, `${target.clientName} - ${target.letterNumber}`, 'Mavjud', 'O\'chirildi');
+    addNotification({
+      type: 'SYSTEM',
+      title: 'Xat o\'chirildi',
+      message: `${target.clientName} dan ${target.letterNumber} raqamli xat o\'chirildi.`,
+      linkModule: 'Xatlar'
     });
   };
 
@@ -1353,6 +1386,30 @@ Imzo
     }));
   };
 
+  const deleteIssue = (id: string) => {
+    const target = issues.find(i => i.id === id);
+    if (!target) return;
+
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN kamchiliklarni o\'chira oladi.',
+        linkModule: 'Kamchiliklar'
+      });
+      return;
+    }
+
+    setIssues(prev => prev.filter(i => i.id !== id));
+    logAudit('Kamchilik o\'chirildi', 'Issue', id, `${target.clientName} - ${target.type}`, 'Mavjud', 'O\'chirildi');
+    addNotification({
+      type: 'SYSTEM',
+      title: 'Kamchilik o\'chirildi',
+      message: `${target.clientName} dan ${target.type} kamchiligi o\'chirildi.`,
+      linkModule: 'Kamchiliklar'
+    });
+  };
+
   const createTask = (taskData: Omit<TaskRecord, 'id' | 'createdAt' | 'acceptedBy'>) => {
     const now = new Date();
     const formatted = now.toISOString().split('T')[0];
@@ -1437,6 +1494,30 @@ Imzo
       }
       return t;
     }));
+  };
+
+  const deleteTask = (id: string) => {
+    const target = tasks.find(t => t.id === id);
+    if (!target) return;
+
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN vazifalarni o\'chira oladi.',
+        linkModule: 'Topshiriqlar'
+      });
+      return;
+    }
+
+    setTasks(prev => prev.filter(t => t.id !== id));
+    logAudit('Vazifa o\'chirildi', 'Task', id, target.title, 'Mavjud', 'O\'chirildi');
+    addNotification({
+      type: 'SYSTEM',
+      title: 'Vazifa o\'chirildi',
+      message: `${target.title} vazifasi o\'chirildi.`,
+      linkModule: 'Topshiriqlar'
+    });
   };
 
   const giveGift = (employeeId: string, giftType: GiftType, description: string, points: number, reason: string) => {
@@ -1860,6 +1941,7 @@ Imzo
         updateLetterStatus,
         createLetter,
         addLetter: createLetter,
+        deleteLetter,
         createKameral,
         addKameral: createKameral,
         updateKameralStatus,
@@ -1867,11 +1949,13 @@ Imzo
         addIssue: createIssue,
         resolveIssue,
         updateIssueStatus,
+        deleteIssue,
         createTask,
         addTask: createTask,
         acceptTask,
         completeTask,
         updateTaskStatus,
+        deleteTask,
         sendChatMessage,
         createChatRoom,
         openDirectChatWithEmployee,

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Mail, Search, Eye, Send, CheckCircle2, Clock, AlertTriangle, Building2 } from 'lucide-react';
+import { Mail, Search, Eye, Send, CheckCircle2, Clock, AlertTriangle, Building2, Trash2 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 
 export const LettersView: React.FC = () => {
-  const { letters, markLetterAsRead, updateLetterStatus, openClientCard } = useCRM();
+  const { letters, markLetterAsRead, updateLetterStatus, openClientCard, deleteLetter, currentUser } = useCRM();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -117,6 +117,15 @@ export const LettersView: React.FC = () => {
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" /> Javob Berildi
+                    </button>
+                  )}
+
+                  {currentUser.role === 'SUPER_ADMIN' && (
+                    <button
+                      onClick={() => deleteLetter(letter.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> O'chirish
                     </button>
                   )}
                 </div>
