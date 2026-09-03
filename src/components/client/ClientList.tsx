@@ -133,7 +133,7 @@ export const ClientList: React.FC = () => {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="p-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center gap-2">
+      <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700 shadow-2xs flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
           <input
@@ -141,7 +141,7 @@ export const ClientList: React.FC = () => {
             placeholder="Nomi, 9 xonali STIR, telefon yoki buxgalter..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs outline-none focus:border-emerald-500 focus:bg-slate-600 transition-all font-medium text-white placeholder:text-slate-400"
           />
         </div>
 
@@ -149,7 +149,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Turlar (YaTT / Yuridik)</option>
           <option value="YURIDIK">Yuridik shaxs (MCHJ, XK)</option>
@@ -160,7 +160,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterTaxType}
           onChange={(e) => setFilterTaxType(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Soliq Turlari</option>
           <option value="QQS_FOYDA">QQS + Foyda solig'i</option>
@@ -172,7 +172,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterAccountant}
           onChange={(e) => setFilterAccountant(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Mas'ullar</option>
           {employees.map(emp => (
@@ -182,10 +182,10 @@ export const ClientList: React.FC = () => {
       </div>
 
       {/* Clients Table */}
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs table-dense">
-            <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+            <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-700 uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="px-3 py-2">Korxona Nomi & STIR</th>
                 <th className="px-3 py-2">Turi & Soliq</th>
@@ -195,7 +195,7 @@ export const ClientList: React.FC = () => {
                 <th className="px-3 py-2 text-right">Amallar</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
+            <tbody className="divide-y divide-slate-700 font-sans">
               {filteredClients.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-6 text-center text-slate-400">
@@ -216,16 +216,16 @@ export const ClientList: React.FC = () => {
                   const hasKameralIssue = clientK.some(k => k.status === 'KAMCHILIK_ANIQLANDI' || k.status === 'OCHIQ');
 
                   return (
-                    <tr 
+                    <tr
                       key={client.id}
                       onClick={() => openClientCard(client.id)}
-                      className="hover:bg-emerald-50/40 transition-colors cursor-pointer group"
+                      className="hover:bg-slate-700/50 transition-colors cursor-pointer group"
                     >
                       {/* Name & STIR */}
                       <td className="px-3 py-2">
-                        <div className="font-bold text-slate-900 group-hover:text-emerald-700 text-xs">{client.name}</div>
+                        <div className="font-bold text-white group-hover:text-emerald-400 text-xs">{client.name}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="font-mono text-slate-600 bg-slate-100 border border-slate-200 px-1 py-0.2 rounded text-[10px] font-semibold">
+                          <span className="font-mono text-slate-400 bg-slate-700 border border-slate-600 px-1 py-0.2 rounded text-[10px] font-semibold">
                             STIR: {client.stir}
                           </span>
                         </div>
@@ -235,11 +235,11 @@ export const ClientList: React.FC = () => {
                       <td className="px-3 py-2">
                         <div className="flex flex-col gap-0.5 items-start">
                           <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${
-                            client.type === 'YATT' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-800 border-blue-200'
+                            client.type === 'YATT' ? 'bg-amber-900/50 text-amber-400 border-amber-700' : 'bg-blue-900/50 text-blue-400 border-blue-700'
                           }`}>
                             {client.type}
                           </span>
-                          <span className="text-[10px] text-slate-600 font-medium font-mono">
+                          <span className="text-[10px] text-slate-400 font-medium font-mono">
                             {client.taxType}
                           </span>
                         </div>
@@ -247,13 +247,13 @@ export const ClientList: React.FC = () => {
 
                       {/* Accountant */}
                       <td className="px-3 py-2">
-                        <div className="font-semibold text-slate-800 text-xs">{client.accountantName}</div>
+                        <div className="font-semibold text-slate-300 text-xs">{client.accountantName}</div>
                       </td>
 
                       {/* Phone & Fee */}
                       <td className="px-3 py-2 font-mono">
-                        <div className="text-slate-700 text-[11px]">{client.phone}</div>
-                        <div className="font-bold text-emerald-800 text-[10px] mt-0.5">
+                        <div className="text-slate-300 text-[11px]">{client.phone}</div>
+                        <div className="font-bold text-emerald-400 text-[10px] mt-0.5">
                           {(client.monthlyFee || 0).toLocaleString()} so'm/oy
                         </div>
                       </td>
@@ -334,16 +334,16 @@ export const ClientList: React.FC = () => {
         </div>
 
         {/* Table Footer */}
-        <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-          <span>Jami: <strong className="text-slate-800">{filteredClients.length} ta</strong> / {clients.length} ta</span>
-          <span className="text-[10px] text-slate-400 font-sans">360° to'liq kartani ko'rish uchun istalgan qator ustiga bosing</span>
+        <div className="px-3 py-2 bg-slate-900 border-t border-slate-700 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+          <span>Jami: <strong className="text-white">{filteredClients.length} ta</strong> / {clients.length} ta</span>
+          <span className="text-[10px] text-slate-500 font-sans">360° to'liq kartani ko'rish uchun istalgan qator ustiga bosing</span>
         </div>
       </div>
 
       {/* Add Client Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="w-full max-w-lg bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
             <div className="flex items-center justify-between p-4 bg-slate-900 text-white">
               <div className="flex items-center gap-2 font-bold text-sm">
                 <Building2 className="w-5 h-5 text-emerald-400" />
