@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowUpRight } from 'lucide-react';
+import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowUpRight, Download } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 
 export const PaymentsView: React.FC = () => {
-  const { payments, recordPayment, openClientCard, currentUser } = useCRM();
+  const { payments, recordPayment, openClientCard, currentUser, generateDebtAct } = useCRM();
   const canManagePayments = currentUser.role === 'KASSIR';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -133,20 +133,31 @@ export const PaymentsView: React.FC = () => {
                     {item.lastPaymentDate || '—'}
                   </td>
                   <td className="p-3.5 text-right">
-                    <button
-                      onClick={() => {
-                        if (!canManagePayments) {
-                          alert('Faqat kassir to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
-                          return;
-                        }
-                        setSelectedClientForPay(item.clientId);
-                        setPayAmount(item.debtAmount > 0 ? String(item.debtAmount) : String(item.monthlyFee));
-                      }}
-                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs disabled:opacity-50"
-                      disabled={!canManagePayments}
-                    >
-                      + To'lov Qabul Qilish
-                    </button>
+                    <div className="flex gap-2 justify-end">
+                      {item.debtAmount > 0 && currentUser.role === 'SUPER_ADMIN' && (
+                        <button
+                          onClick={() => generateDebtAct(item.clientId)}
+                          className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          Akt
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (!canManagePayments) {
+                            alert('Faqat kassir to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
+                            return;
+                          }
+                          setSelectedClientForPay(item.clientId);
+                          setPayAmount(item.debtAmount > 0 ? String(item.debtAmount) : String(item.monthlyFee));
+                        }}
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs disabled:opacity-50"
+                        disabled={!canManagePayments}
+                      >
+                        + To'lov
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Settings, 
   Shield, 
@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Sparkles,
   Download,
-  Upload
+  Upload,
+  FileText
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 
@@ -31,11 +32,21 @@ export const SettingsView: React.FC = () => {
     applyDatabaseAutoFix,
     setIsScannerModalOpen,
     clients,
-    taxReports
+    taxReports,
+    currentUser,
+    debtActTemplate,
+    updateDebtActTemplate
   } = useCRM();
+
+  const [templateInput, setTemplateInput] = useState(debtActTemplate);
 
   const handleFix = () => {
     applyDatabaseAutoFix();
+  };
+
+  const handleSaveTemplate = () => {
+    updateDebtActTemplate(templateInput);
+    alert('Qarzdorlik akti shabloni saqlandi!');
   };
 
   const exportDataJson = () => {
@@ -218,6 +229,32 @@ export const SettingsView: React.FC = () => {
             @Asr21_Accounting_Bot (Ulangan)
           </div>
         </div>
+
+        {/* Debt Act Template */}
+        {currentUser.role === 'SUPER_ADMIN' && (
+          <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4 md:col-span-2">
+            <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4 text-rose-600" />
+              Qarzdorlik Akti Shabloni
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              SUPER_ADMIN tomonidan qarzdorlik akti shablonini sozlash. Quyidagi o'zgaruvchilardan foydalaning: {`{korxona_nomi}`}, {`{stir}`}, {`{manzil}`}, {`{qarz_miqdori}`}, {`{oylik_tolov}`}, {`{tolangan}`}, {`{sana}`}
+            </p>
+            <textarea
+              value={templateInput}
+              onChange={(e) => setTemplateInput(e.target.value)}
+              placeholder="Qarzdorlik akti shablonini kiriting..."
+              className="w-full h-32 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-emerald-600 resize-none"
+            />
+            <button
+              onClick={handleSaveTemplate}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Shablonni Saqlash
+            </button>
+          </div>
+        )}
 
         {/* Reset to Demo */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">

@@ -80,6 +80,7 @@ interface CRMContextType {
   activeTab: string;
   selectedClientIdForModal: string | null;
   globalSearchOpen: boolean;
+  debtActTemplate: string;
   
   // Navigation & UI controls
   setActiveTab: (tab: string) => void;
@@ -89,6 +90,8 @@ interface CRMContextType {
   setGlobalSearchOpen: (open: boolean) => void;
   setCurrentPeriod: (period: ReportPeriod) => void;
   logoutUser: () => void;
+  updateDebtActTemplate: (template: string) => void;
+  generateDebtAct: (clientId: string) => void;
   
   // Client Operations
   addClient: (clientData: Omit<Client, 'id'>) => Client;
@@ -318,6 +321,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const [selectedClientIdForModal, setSelectedClientIdForModal] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState<boolean>(false);
+  const [debtActTemplate, setDebtActTemplate] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('21ASR_DEBT_ACT_TEMPLATE');
+      return saved || '';
+    } catch {
+      return '';
+    }
+  });
 
   // One-time cleanup: drop legacy real-mode test seed (V1) so real workspace stays empty
   useEffect(() => {
@@ -336,6 +347,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(MODE_STORAGE_KEY, isDemoMode ? 'DEMO' : 'REAL');
   }, [isDemoMode]);
+
+  // Sync debt act template to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('21ASR_DEBT_ACT_TEMPLATE', debtActTemplate);
+    } catch (e) {}
+  }, [debtActTemplate]);
 
   const prefix = getPrefix(isDemoMode);
 
@@ -554,7 +572,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const switchUserRole = (role: UserRole, employeeId?: string) => {
-    // Barcha hodimlar rollarga o'tishi mumkin (shared data model)
+    // Faqat SUPER_ADMIN boshqa rollarga o'tishi mumkin
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN boshqa rollarga o\'tishi mumkin.',
+        linkModule: 'Dashboard'
+      });
+      return;
+    }
+
     let targetEmployee = employees.find(e => employeeId ? e.id === employeeId : e.role === role);
     if (!targetEmployee) {
       targetEmployee = employees.find(e => e.role === role) || employees[0];
@@ -899,6 +927,83 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
 
     logAudit('Mijozlar biriktirildi', 'Employee', employeeId, emp.name, undefined, `${clientIds.length} ta mijoz biriktirildi`);
+  };
+
+  const updateDebtActTemplate = (template: string) => {
+    setDebtActTemplate(template);
+  };
+
+  const generateDebtAct = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    const payment = payments.find(p => p.clientId === clientId);
+    
+    if (!client || !payment) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Mijoz yoki to\'lov ma\'lumotlari topilmadi.',
+        linkModule: 'To\'lovlar'
+      });
+      return;
+    }
+
+    if (payment.debtAmount <= 0) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Bu mijozning qarzdorligi yo\'q.',
+        linkModule: 'To\'lovlar'
+      });
+      return;
+    }
+
+    // Generate debt act content using template
+    const today = new Date().toLocaleDateString('uz-UZ');
+    let actContent = debtActTemplate || `
+QARZDORLIK AKTI
+
+${today} yil
+
+Korxona: ${client.name}
+STIR: ${client.stir}
+Manzil: ${client.address || 'Ko\'rsatilmagan'}
+
+Qarzdorlik miqdori: ${payment.debtAmount.toLocaleString()} so'm
+Oylik to'lov: ${payment.monthlyFee.toLocaleString()} so'm
+To'langan: ${payment.paidAmount.toLocaleString()} so'm
+
+_________________________
+Imzo
+`;
+
+    // Replace placeholders in template
+    actContent = actContent
+      .replace(/{korxona_nomi}/g, client.name)
+      .replace(/{stir}/g, client.stir)
+      .replace(/{manzil}/g, client.address || 'Ko\'rsatilmagan')
+      .replace(/{qarz_miqdori}/g, payment.debtAmount.toLocaleString() + ' so\'m')
+      .replace(/{oylik_tolov}/g, payment.monthlyFee.toLocaleString() + ' so\'m')
+      .replace(/{tolangan}/g, payment.paidAmount.toLocaleString() + ' so\'m')
+      .replace(/{sana}/g, today);
+
+    // Create and download the file
+    const blob = new Blob([actContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Qarzdorlik_Akt_${client.name}_${today}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    logAudit('Qarzdorlik akti yuklab olindi', 'DebtAct', clientId, client.name);
+    addNotification({
+      type: 'SYSTEM',
+      title: '✅ Qarzdorlik akti yuklab olindi',
+      message: `${client.name} uchun qarzdorlik akti yaratildi.`,
+      linkModule: 'To\'lovlar'
+    });
   };
 
   const updateTaxReportStatus = (reportId: string, status: ReportStatus, notes?: string, proof?: ProofAttachment) => {
@@ -1663,12 +1768,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTab,
         selectedClientIdForModal,
         globalSearchOpen,
+        debtActTemplate,
         setActiveTab,
         switchUserRole,
         openClientCard,
         closeClientCard,
         setGlobalSearchOpen,
         setCurrentPeriod,
+        logoutUser,
+        updateDebtActTemplate,
+        generateDebtAct,
         addClient,
         updateClient,
         deleteClient,
