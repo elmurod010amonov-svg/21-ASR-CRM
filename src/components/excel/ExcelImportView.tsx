@@ -70,6 +70,7 @@ export const ExcelImportView: React.FC = () => {
     const accKey = detectKey(keys, [/buxgalter/i, /accountant/i, /masul/i, /responsible/i]);
     const phoneKey = detectKey(keys, [/telefon/i, /phone/i, /tel/i]);
     const feeKey = detectKey(keys, [/oylik/i, /monthly/i, /summa/i, /fee/i]);
+    const addressKey = detectKey(keys, [/manzil/i, /address/i]);
 
     const mapped = raw.map((row: any) => {
       const get = (k?: string) => (k ? row[k] : undefined);
@@ -83,7 +84,7 @@ export const ExcelImportView: React.FC = () => {
         accountantName: get(accKey) || '',
         phone: get(phoneKey) || '',
         monthlyFee: feeNum,
-        address: get('address') || '',
+        address: get(addressKey) || '',
       };
     });
 

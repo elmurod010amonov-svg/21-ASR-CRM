@@ -26,7 +26,7 @@ export const PaymentsView: React.FC = () => {
     e.preventDefault();
     if (!selectedClientForPay) return;
     const amount = parseInt(payAmount.replace(/\D/g, ''), 10);
-    if (!amount || amount <= 0) return;
+    if (isNaN(amount) || amount < 0) return;
     recordPayment(selectedClientForPay, amount, payNotes);
     setSelectedClientForPay(null);
     setPayAmount('');

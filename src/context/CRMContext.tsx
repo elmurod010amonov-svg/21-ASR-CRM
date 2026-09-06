@@ -2075,6 +2075,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clients.forEach(c => existingStirMap.set(c.stir.trim(), c));
 
     const updatedClientsList = [...clients];
+    const newlyAddedClients: Client[] = [];
 
     newClientsData.forEach((item, index) => {
       const stir = (item.stir || '').trim();
@@ -2132,11 +2133,82 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
         updatedClientsList.unshift(newClient);
         existingStirMap.set(stir, newClient);
+        newlyAddedClients.push(newClient);
         added++;
       }
     });
 
     setClients(updatedClientsList);
+
+    // Har bir yangi mijoz uchun ham qo'lda qo'shishdagi kabi hisobot va to'lov
+    // yozuvlarini avtomatik yaratamiz — aks holda ular Hisobotlar/To'lovlar
+    // bo'limlarida umuman ko'rinmay qoladi.
+    if (newlyAddedClients.length > 0) {
+      const newReports: TaxReport[] = [];
+      const new1CRecords: Accounting1CRecord[] = [];
+      const newPaymentRecords: PaymentRecord[] = [];
+
+      newlyAddedClients.forEach((client, clientIdx) => {
+        const defaultReportTypes: ReportType[] = client.assignedReportTypes && client.assignedReportTypes.length > 0
+          ? client.assignedReportTypes
+          : (client.taxType === 'QQS'
+              ? ['QQS', 'FOYDA', 'JSHDS', 'INPS']
+              : (client.taxType === 'FOYDA'
+                  ? ['FOYDA', 'JSHDS', 'INPS']
+                  : ['AYLANMA', 'JSHDS', 'INPS']));
+
+        defaultReportTypes.forEach((rt, rtIdx) => {
+          newReports.push({
+            id: `rep-imp-${Date.now()}-${clientIdx}-${rtIdx}`,
+            clientId: client.id,
+            clientName: client.name,
+            stir: client.stir,
+            reportType: rt,
+            periodId: currentPeriod.id,
+            status: 'TOPSHIRILMAGAN',
+            accountantId: client.accountantId,
+          });
+        });
+
+        if (isSubjectTo1C(client.monthlyFee)) {
+          new1CRecords.push({
+            id: `ac-imp-${Date.now()}-${clientIdx}`,
+            clientId: client.id,
+            clientName: client.name,
+            stir: client.stir,
+            periodId: currentPeriod.id,
+            oborotkaStatus: 'KIRITILMAGAN',
+            incomingInvoicesCount: 0,
+            incomingInvoicesEntered: 0,
+            incomingStatus: 'KIRITILGAN',
+            outgoingInvoicesCount: 0,
+            outgoingInvoicesEntered: 0,
+            outgoingStatus: 'KIRITILGAN',
+            accountantId: client.accountantId,
+            issuesCount: 0,
+            lastUpdated: new Date().toLocaleDateString('uz-UZ'),
+          });
+        }
+
+        newPaymentRecords.push({
+          id: `pay-imp-${Date.now()}-${clientIdx}`,
+          clientId: client.id,
+          clientName: client.name,
+          stir: client.stir,
+          monthlyFee: client.monthlyFee,
+          paidAmount: 0,
+          debtAmount: client.monthlyFee,
+          nextDueDate: '2026-08-15',
+          status: 'TOLANMAGAN',
+          accountantId: client.accountantId,
+        });
+      });
+
+      setTaxReports(prev => [...newReports, ...prev]);
+      if (new1CRecords.length > 0) setAccounting1C(prev => [...new1CRecords, ...prev]);
+      setPayments(prev => [...newPaymentRecords, ...prev]);
+    }
+
     logAudit('Excel import bajarildi', 'ExcelImport', `imp-${Date.now()}`, `Qo'shildi: ${added}, Yangilandi: ${updated}, O'tkazildi: ${skipped}`);
     
     addNotification({
