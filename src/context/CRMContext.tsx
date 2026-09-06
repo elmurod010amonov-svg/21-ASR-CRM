@@ -51,6 +51,7 @@ import {
 } from '../data/initialData';
 import { scanDatabase, autoFixDatabase } from '../utils/dbScanner';
 import { idbGetFile, idbSetFile, idbDeleteFile } from '../utils/idbFileStore';
+import { apiGet, apiPost, apiPut } from '../utils/apiClient';
 import { isSubjectTo1C } from '../utils/oborotka';
 import {
   base64ToArrayBuffer,
@@ -199,9 +200,9 @@ interface CRMContextType {
   
   // Import & Persistence
   importClientsFromExcel: (newClients: Partial<Client>[], updateExisting: boolean) => { added: number; updated: number; skipped: number };
-  registerUser: (employeeId: string, password: string) => void;
-  updateUserPassword: (employeeId: string, password: string) => boolean;
-  loginUser: (identifier: string, password: string) => boolean;
+  registerUser: (employeeId: string, password: string) => Promise<void>;
+  updateUserPassword: (employeeId: string, password: string) => Promise<boolean>;
+  loginUser: (identifier: string, password: string) => Promise<boolean>;
   logAudit: (action: string, objectType: string, objectId: string, objectName: string, oldValue?: string, newValue?: string) => void;
 }
 
@@ -240,31 +241,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadData('employees', INITIAL_EMPLOYEES)
   );
 
-  // Simple in-memory credential store persisted to localStorage (employeeId -> password)
-  const [userCredentials, setUserCredentials] = useState<Record<string,string>>(() => {
-    try {
-      const raw = localStorage.getItem('21ASR_USER_CREDENTIALS');
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
-  });
-
-  const getSuperAdminPassword = useCallback(() => {
-    const envValue = (import.meta as any)?.env?.VITE_SUPER_ADMIN_PASSWORD;
-    const fromEnv = envValue && String(envValue).trim();
-    // Ignore placeholder values from .env.example so login never breaks on Vercel
-    if (fromEnv && fromEnv !== 'your-admin-password' && fromEnv !== 'CHANGE_ME') {
-      return fromEnv;
-    }
-    return 'Fjahongir0204';
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('21ASR_USER_CREDENTIALS', JSON.stringify(userCredentials));
-    } catch (e) {}
-  }, [userCredentials]);
+  // Mijozlar/xodimlar endi Mongo'da saqlanadi — parol tekshiruvi ham serverda
+  // (/api/auth/login, /api/auth/register) amalga oshadi, brauzerda plaintext
+  // parol umuman saqlanmaydi. Bu ref debtActTemplateFile'dagi kabi — server'dan
+  // birinchi marta yuklab olinmagunicha clients/employees'ni serverga qayta
+  // yozib yubormaslik uchun.
+  const coreDataHydrated = useRef(false);
 
   const guestUser: Employee = {
     id: 'guest',
@@ -473,6 +455,63 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Clients saqlanmadi (localStorage):', err);
     }
   }, [clients]);
+
+  // Mijozlar va xodimlarni serverdan (Mongo) yuklab olish — bu ikkalasi endi
+  // barcha xodimlar uchun umumiy (shared) ma'lumot. Yuklanmagunicha pastdagi
+  // sinxronlash effektlari ishlamaydi (aks holda bo'sh massiv serverni tozalab
+  // qo'yishi mumkin edi) — xuddi debtActTemplateFile hydration patterni kabi.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [serverClients, serverEmployees] = await Promise.all([
+          apiGet<Client[]>('/api/clients'),
+          apiGet<Employee[]>('/api/employees'),
+        ]);
+        if (cancelled) return;
+        setClients(serverClients);
+        setEmployees(serverEmployees);
+        // Joriy foydalanuvchini eng yangi ma'lumot bilan yangilaymiz (roli/ruxsatlari
+        // o'zgargan bo'lishi mumkin), agar hali ham mavjud bo'lsa
+        setCurrentUser(prev => {
+          if (prev.id === 'guest') return prev;
+          const fresh = serverEmployees.find(e => e.id === prev.id);
+          return fresh || prev;
+        });
+      } catch (err) {
+        console.error('Mijozlar/xodimlarni serverdan yuklab bo\'lmadi:', err);
+        addNotification({
+          type: 'SYSTEM',
+          title: 'Serverga ulanib bo\'lmadi',
+          message: 'Mijozlar va xodimlar ro\'yxati oxirgi saqlangan (lokal) nusxadan ko\'rsatilmoqda. Internetni tekshirib, sahifani yangilang.',
+          linkModule: 'Dashboard',
+        });
+      } finally {
+        if (!cancelled) coreDataHydrated.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Har qanday o'zgarishdan keyin (yangi mijoz, tahrirlash, xodimga sovg'a
+  // berish va h.k.) butun massivni serverga sinxronlaymiz — hydratsiya
+  // tugamaguncha yubormaymiz.
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/clients', clients).catch(err => console.error('Mijozlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [clients]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/employees', employees).catch(err => console.error('Xodimlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [employees]);
 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_taxReports`, JSON.stringify(taxReports));
@@ -847,57 +886,41 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newEmp;
   };
 
-  // Register credential for an employee (only to be called by Super Admin)
-  const registerUser = (employeeId: string, password: string) => {
-    setUserCredentials(prev => ({ ...prev, [employeeId]: password }));
-    logAudit('Foydalanuvchi ro\'yxatdan o\'tkazildi', 'Auth', `reg-${employeeId}`, `Credentials set for ${employeeId}`);
+  // Foydalanuvchi paroli endi serverda (bcrypt bilan xeshlangan) saqlanadi —
+  // brauzerda plaintext parol umuman ushlanmaydi.
+  const registerUser = async (employeeId: string, password: string) => {
+    try {
+      await apiPost('/api/auth/register', { employeeId, password });
+      logAudit('Foydalanuvchi ro\'yxatdan o\'tkazildi', 'Auth', `reg-${employeeId}`, `Credentials set for ${employeeId}`);
+    } catch (err) {
+      console.error('registerUser xatolik:', err);
+      addNotification({ type: 'SYSTEM', title: 'Xatolik', message: 'Parol serverga saqlanmadi. Qayta urinib ko\'ring.', linkModule: 'Xodimlar' });
+    }
   };
 
-  const updateUserPassword = (employeeId: string, password: string): boolean => {
+  const updateUserPassword = async (employeeId: string, password: string): Promise<boolean> => {
     if (!employeeId || !password.trim()) return false;
-    setUserCredentials(prev => ({ ...prev, [employeeId]: password.trim() }));
-    logAudit('Foydalanuvchi paroli yangilandi', 'Auth', `reset-${employeeId}`, `Credentials reset for ${employeeId}`);
-    return true;
+    try {
+      await apiPost('/api/auth/register', { employeeId, password: password.trim() });
+      logAudit('Foydalanuvchi paroli yangilandi', 'Auth', `reset-${employeeId}`, `Credentials reset for ${employeeId}`);
+      return true;
+    } catch (err) {
+      console.error('updateUserPassword xatolik:', err);
+      return false;
+    }
   };
 
-  const loginUser = (identifier: string, password: string): boolean => {
-    const normalizedIdentifier = identifier.trim().toLowerCase();
-    const normalizedPhone = (value: string) => value.replace(/\D/g, '');
-    const compactName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const adminAliases = new Set([
-      'emp-1',
-      'admin',
-      'superadmin',
-      'super admin',
-      'super-admin',
-    ]);
-
-    const target = employees.find(e => {
-      if (adminAliases.has(normalizedIdentifier) && e.id === 'emp-1') return true;
-      const idMatch = e.id.toLowerCase() === normalizedIdentifier;
-      const emailMatch = e.email.toLowerCase() === normalizedIdentifier;
-      const phoneMatch = normalizedPhone(e.phone) === normalizedPhone(identifier.trim());
-      const nameMatch = compactName(e.name) === compactName(normalizedIdentifier);
-      return idMatch || emailMatch || phoneMatch || nameMatch;
-    });
-
-    if (!target) return false;
-
-    const stored = userCredentials[target.id];
-    const adminPassword = getSuperAdminPassword();
-    const ok =
-      target.id === 'emp-1'
-        ? password === stored || password === adminPassword
-        : !!stored && stored === password;
-
-    if (ok) {
+  const loginUser = async (identifier: string, password: string): Promise<boolean> => {
+    try {
+      const target = await apiPost<Employee>('/api/auth/login', { identifier, password });
       setCurrentUser(target);
       setActiveTab('Dashboard');
       logAudit('Foydalanuvchi tizimga kirdi', 'Auth', `login-${target.id}`, target.name);
       addNotification({ type: 'SYSTEM', title: 'Tizimga kirildi', message: `${target.name} sifatida tizimga kirdingiz`, linkModule: 'Dashboard' });
       return true;
+    } catch (err) {
+      return false;
     }
-    return false;
   };
 
   const updateEmployee = (id: string, updates: Partial<Employee>) => {
@@ -2146,8 +2169,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setChatMessages(INITIAL_CHAT_MESSAGES);
     setAuditLogs(INITIAL_AUDIT_LOGS);
     setNotifications(INITIAL_NOTIFICATIONS);
-    setUserCredentials({});
-    
+
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_employees`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_clients`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_taxReports`);

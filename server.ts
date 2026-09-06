@@ -13,7 +13,9 @@ process.env.PORT = process.env.PORT || "3000";
 
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import bcrypt from 'bcryptjs';
 import { connectToMongo } from './src/db/mongoClient';
+import { INITIAL_CLIENTS, INITIAL_EMPLOYEES } from './src/data/initialData';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -99,6 +101,131 @@ app.get('/api/db-test', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('DB test error:', error);
     return res.status(500).json({ ok: false, error: error?.message || String(error) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// CRM shared data — Mijozlar / Xodimlar / Kirish (Mongo bilan sinxronlash)
+// ---------------------------------------------------------------------------
+
+// Front-end butun massivni yuboradi (mavjud optimistik-yangilash arxitekturasi
+// bilan mos) — bazadagi to'plam shu massiv bilan to'liq almashtiriladi.
+async function replaceCollection(collectionName: string, docs: any[]) {
+  const db = await connectToMongo();
+  await db.collection(collectionName).deleteMany({});
+  if (docs.length > 0) {
+    await db.collection(collectionName).insertMany(docs);
+  }
+}
+
+app.get('/api/clients', async (req: Request, res: Response) => {
+  try {
+    const db = await connectToMongo();
+    const clients = await db.collection('clients').find({}, { projection: { _id: 0 } }).toArray();
+    return res.json(clients);
+  } catch (error: any) {
+    console.error('GET /api/clients error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
+
+app.put('/api/clients', async (req: Request, res: Response) => {
+  try {
+    const clients = req.body;
+    if (!Array.isArray(clients)) {
+      return res.status(400).json({ error: 'Massiv (array) kutilgan' });
+    }
+    await replaceCollection('clients', clients);
+    return res.json({ ok: true, count: clients.length });
+  } catch (error: any) {
+    console.error('PUT /api/clients error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
+
+app.get('/api/employees', async (req: Request, res: Response) => {
+  try {
+    const db = await connectToMongo();
+    const employees = await db.collection('employees').find({}, { projection: { _id: 0 } }).toArray();
+    return res.json(employees);
+  } catch (error: any) {
+    console.error('GET /api/employees error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
+
+app.put('/api/employees', async (req: Request, res: Response) => {
+  try {
+    const employees = req.body;
+    if (!Array.isArray(employees)) {
+      return res.status(400).json({ error: 'Massiv (array) kutilgan' });
+    }
+    await replaceCollection('employees', employees);
+    return res.json({ ok: true, count: employees.length });
+  } catch (error: any) {
+    console.error('PUT /api/employees error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
+
+// Login uchun mijoz kiritgan identifikator (id, email, telefon yoki ism) bo'yicha
+// moslashuvchan qidiruv — frontend'dagi eski loginUser() mantig'i bilan bir xil.
+function findEmployeeByIdentifier(employees: any[], identifier: string) {
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const normalizedPhone = (value: string) => value.replace(/\D/g, '');
+  const compactName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const adminAliases = new Set(['emp-1', 'admin', 'superadmin', 'super admin', 'super-admin']);
+
+  return employees.find((e) => {
+    if (adminAliases.has(normalizedIdentifier) && e.id === 'emp-1') return true;
+    const idMatch = String(e.id || '').toLowerCase() === normalizedIdentifier;
+    const emailMatch = String(e.email || '').toLowerCase() === normalizedIdentifier;
+    const phoneMatch = normalizedPhone(String(e.phone || '')) === normalizedPhone(identifier.trim());
+    const nameMatch = compactName(String(e.name || '')) === compactName(normalizedIdentifier);
+    return idMatch || emailMatch || phoneMatch || nameMatch;
+  });
+}
+
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  try {
+    const { identifier, password } = req.body || {};
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Login va parol kiritilishi shart' });
+    }
+    const db = await connectToMongo();
+    const employees = await db.collection('employees').find({}, { projection: { _id: 0 } }).toArray();
+    const target = findEmployeeByIdentifier(employees, String(identifier));
+    if (!target) {
+      return res.status(401).json({ error: 'Foydalanuvchi topilmadi' });
+    }
+    const cred = await db.collection('credentials').findOne({ employeeId: target.id });
+    if (!cred || !(await bcrypt.compare(String(password), cred.passwordHash))) {
+      return res.status(401).json({ error: "Noto'g'ri login yoki parol" });
+    }
+    return res.json(target);
+  } catch (error: any) {
+    console.error('Login error:', error);
+    return res.status(503).json({ error: 'Kirish xizmati vaqtincha ishlamayapti' });
+  }
+});
+
+app.post('/api/auth/register', async (req: Request, res: Response) => {
+  try {
+    const { employeeId, password } = req.body || {};
+    if (!employeeId || !password) {
+      return res.status(400).json({ error: 'employeeId va password kiritilishi shart' });
+    }
+    const db = await connectToMongo();
+    const passwordHash = await bcrypt.hash(String(password), 10);
+    await db.collection('credentials').updateOne(
+      { employeeId },
+      { $set: { employeeId, passwordHash } },
+      { upsert: true }
+    );
+    return res.json({ ok: true });
+  } catch (error: any) {
+    console.error('Register error:', error);
+    return res.status(503).json({ error: 'Parolni saqlashda xatolik' });
   }
 });
 
@@ -282,10 +409,39 @@ ${JSON.stringify(chatLogs || [])}`;
   }
 });
 
+async function seedInitialDataIfEmpty() {
+  const db = await connectToMongo();
+
+  const clientsCount = await db.collection('clients').countDocuments();
+  if (clientsCount === 0 && INITIAL_CLIENTS.length > 0) {
+    await db.collection('clients').insertMany(INITIAL_CLIENTS as any[]);
+    console.log(`🌱 ${INITIAL_CLIENTS.length} ta boshlang'ich mijoz bazaga yuklandi`);
+  }
+
+  const employeesCount = await db.collection('employees').countDocuments();
+  if (employeesCount === 0) {
+    await db.collection('employees').insertMany(INITIAL_EMPLOYEES as any[]);
+    console.log(`🌱 ${INITIAL_EMPLOYEES.length} ta boshlang'ich xodim bazaga yuklandi`);
+  }
+
+  const credCount = await db.collection('credentials').countDocuments();
+  if (credCount === 0) {
+    const initialPassword = process.env.SUPER_ADMIN_INITIAL_PASSWORD || 'ChangeMe123!';
+    const passwordHash = await bcrypt.hash(initialPassword, 10);
+    await db.collection('credentials').insertOne({ employeeId: 'emp-1', passwordHash });
+    console.log(
+      `⚠️  SUPER_ADMIN (emp-1) uchun boshlang'ich parol o'rnatildi${
+        process.env.SUPER_ADMIN_INITIAL_PASSWORD ? '' : " (standart: 'ChangeMe123!')"
+      } — tizimga kirib, Sozlamalar orqali darhol almashtiring.`
+    );
+  }
+}
+
 async function startServer() {
   try {
     await connectToMongo();
     console.log('✅ MongoDB connected successfully');
+    await seedInitialDataIfEmpty();
   } catch (err: any) {
     console.error('❌ MongoDB connection failed:', err?.message || err);
     console.log('⚠️  Server will start without MongoDB connection');

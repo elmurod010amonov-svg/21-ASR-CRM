@@ -34,10 +34,13 @@ const GuestLoginGate: React.FC = () => {
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = loginUser(identifier.trim(), password);
+    setIsSubmitting(true);
+    const ok = await loginUser(identifier.trim(), password);
+    setIsSubmitting(false);
     if (!ok) {
       setError('Noto‘g‘ri login yoki parol.');
       return;
@@ -89,9 +92,10 @@ const GuestLoginGate: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-black py-3.5 text-sm font-bold text-white hover:bg-neutral-800 active:scale-[0.98] transition-all"
+            disabled={isSubmitting}
+            className="w-full rounded-xl bg-black py-3.5 text-sm font-bold text-white hover:bg-neutral-800 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Tizimga kirish
+            {isSubmitting ? 'Tekshirilmoqda...' : 'Tizimga kirish'}
           </button>
         </form>
       </div>

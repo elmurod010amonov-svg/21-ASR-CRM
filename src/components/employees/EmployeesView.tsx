@@ -183,14 +183,14 @@ export const EmployeesView: React.FC = () => {
     }
   };
 
-  const handlePasswordReset = (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordResetEmployee || !newPassword.trim()) {
       alert('Yangi parolni kiriting!');
       return;
     }
 
-    const ok = updateUserPassword(passwordResetEmployee.id, newPassword.trim());
+    const ok = await updateUserPassword(passwordResetEmployee.id, newPassword.trim());
     if (!ok) {
       alert('Parol yangilanishi muvaffaqiyatsiz tugadi.');
       return;
