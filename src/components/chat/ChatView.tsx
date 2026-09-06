@@ -27,8 +27,8 @@ export const ChatView: React.FC = () => {
   const { 
     chatRooms, 
     chatMessages, 
-    currentUser, 
-    employees, 
+    currentUser,
+    visibleEmployees: employees,
     sendChatMessage,
     createChatRoom,
     openDirectChatWithEmployee,

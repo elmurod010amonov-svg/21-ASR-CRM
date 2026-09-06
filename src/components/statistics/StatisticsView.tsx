@@ -3,7 +3,7 @@ import { BarChart3, TrendingUp, DollarSign, FileSpreadsheet, Building2, UserChec
 import { useCRM } from '../../context/CRMContext';
 
 export const StatisticsView: React.FC = () => {
-  const { clients, taxReports, payments, employees } = useCRM();
+  const { clients, taxReports, payments, visibleEmployees: employees } = useCRM();
 
   const totalClients = clients.length;
   const totalReports = taxReports.filter(r => r.status !== 'TALAB_QILINMAYDI').length;

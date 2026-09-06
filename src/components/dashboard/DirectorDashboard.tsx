@@ -32,9 +32,9 @@ export const DirectorDashboard: React.FC = () => {
     letters, 
     kameral, 
     issues, 
-    tasks, 
-    employees, 
-    openClientCard, 
+    tasks,
+    visibleEmployees: employees,
+    openClientCard,
     setActiveTab 
   } = useCRM();
 

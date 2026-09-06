@@ -30,7 +30,7 @@ export const TasksView: React.FC = () => {
     completeTask,
     createTask,
     deleteTask,
-    employees,
+    visibleEmployees: employees,
     clients,
     currentUser,
     openClientCard

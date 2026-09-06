@@ -37,10 +37,11 @@ export const AIAssistantView: React.FC = () => {
     payments, 
     letters, 
     kameral, 
-    tasks, 
-    employees, 
-    createTask, 
-    currentUser 
+    tasks,
+    employees,
+    visibleEmployees,
+    createTask,
+    currentUser
   } = useCRM();
 
   const [selectedAgent, setSelectedAgent] = useState<AIAgentRole>('SOLIQ_MASLAHATCHISI');
@@ -141,7 +142,7 @@ export const AIAssistantView: React.FC = () => {
           payload: {
             title: "Avgust oyi soliq hisobotlarini 15-avgustgacha to'liq yakunlash",
             deadlineDate: "2026-08-15",
-            assigneeIds: employees.map(e => e.id)
+            assigneeIds: visibleEmployees.map(e => e.id)
           }
         };
       }
@@ -172,7 +173,7 @@ export const AIAssistantView: React.FC = () => {
         creatorId: currentUser.id,
         creatorName: currentUser.name,
         assigneeIds: proposal.payload.assigneeIds,
-        assigneeNames: employees.map(e => e.name),
+        assigneeNames: visibleEmployees.map(e => e.name),
         deadlineDate: proposal.payload.deadlineDate,
         priority: 'SHOSHILINCH',
         status: 'YANGI',

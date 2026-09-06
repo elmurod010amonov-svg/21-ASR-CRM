@@ -10,8 +10,8 @@ export const GlobalSearchModal: React.FC = () => {
     taxReports, 
     letters, 
     kameral, 
-    tasks, 
-    employees, 
+    tasks,
+    visibleEmployees: employees,
     openClientCard,
     setActiveTab 
   } = useCRM();

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Employee,
   Client,
@@ -73,6 +73,9 @@ interface CRMContextType {
   // Core entities
   currentUser: Employee;
   employees: Employee[];
+  /** SUPER_ADMIN dan boshqa hech kimga Super Admin ko'rinmasligi kerak bo'lgan
+   * ro'yxatlar/tanlovlar uchun (reyting, xodim biriktirish va h.k.) */
+  visibleEmployees: Employee[];
   clients: Client[];
   periods: ReportPeriod[];
   currentPeriod: ReportPeriod;
@@ -282,6 +285,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return guestUser;
   });
+
+  // Super Admin faqat o'zi uchun ko'rinadi — boshqa xodimlarga tanlov ro'yxatlari,
+  // reytinglar va biriktirish oynalarida ko'rsatilmaydi.
+  const visibleEmployees = useMemo(
+    () => (currentUser.role === 'SUPER_ADMIN' ? employees : employees.filter(e => e.role !== 'SUPER_ADMIN')),
+    [employees, currentUser.role]
+  );
 
   // Joriy foydalanuvchi ID'sini saqlab boramiz — sahifa yangilanganda shu orqali sessiya tiklanadi
   useEffect(() => {
@@ -2303,6 +2313,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         currentUser,
         employees,
+        visibleEmployees,
         clients,
         periods,
         currentPeriod,

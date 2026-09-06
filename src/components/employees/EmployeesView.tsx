@@ -27,6 +27,7 @@ import { UserRole, Employee, GiftType, GIFT_PRESETS } from '../../types';
 export const EmployeesView: React.FC = () => {
   const {
     employees,
+    visibleEmployees,
     clients,
     taxReports,
     tasks,
@@ -72,10 +73,10 @@ export const EmployeesView: React.FC = () => {
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
   const canGiveGift = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role);
 
-  const ratingLeaderboard = [...employees]
+  const ratingLeaderboard = [...visibleEmployees]
     .sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name));
 
-  const filtered = employees.filter(e => {
+  const filtered = visibleEmployees.filter(e => {
     const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
       e.position.toLowerCase().includes(search.toLowerCase()) ||
       e.phone.includes(search);
@@ -202,7 +203,7 @@ export const EmployeesView: React.FC = () => {
   };
 
   // Stats calculation
-  const totalEmployees = employees.length;
+  const totalEmployees = visibleEmployees.length;
   const accountantsCount = employees.filter(e => e.role === 'BUXGALTER').length;
   const auditorsCount = employees.filter(e => e.role === 'NAZORATCHI').length;
   const assignedClientsCount = clients.filter(c => c.accountantId && c.accountantId !== 'emp-1').length;

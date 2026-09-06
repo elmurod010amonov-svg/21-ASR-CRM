@@ -21,9 +21,9 @@ import { isOborotkaActive } from '../../utils/oborotka';
 
 export const ClientList: React.FC = () => {
   const { 
-    clients, 
-    employees, 
-    taxReports, 
+    clients,
+    visibleEmployees: employees,
+    taxReports,
     accounting1C, 
     payments, 
     letters, 

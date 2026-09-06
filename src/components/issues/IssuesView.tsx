@@ -28,7 +28,7 @@ export const IssuesView: React.FC = () => {
     createIssue,
     deleteIssue,
     clients,
-    employees,
+    visibleEmployees: employees,
     currentUser,
     openClientCard
   } = useCRM();

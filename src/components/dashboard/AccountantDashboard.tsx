@@ -23,7 +23,7 @@ export const AccountantDashboard: React.FC = () => {
     accounting1C,
     letters,
     tasks,
-    employees,
+    visibleEmployees: employees,
     openClientCard,
     updateTaxReportStatus,
     toggle1COborotka,
