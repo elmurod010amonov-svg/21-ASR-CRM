@@ -15,8 +15,9 @@ import {
   Sliders
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { ClientType, TaxType, ReportType, Client } from '../../types';
+import { ClientType, TaxType, ReportType, Client, stirFieldLabel, stirFieldLength } from '../../types';
 import { ClientReportFormsConfigModal, ALL_TAX_REPORTS } from '../common/ClientReportFormsConfigModal';
+import { isOborotkaActive } from '../../utils/oborotka';
 
 export const ClientList: React.FC = () => {
   const { 
@@ -76,12 +77,14 @@ export const ClientList: React.FC = () => {
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanStir = stir.trim();
-    if (cleanStir.length !== 9 || !/^\d+$/.test(cleanStir)) {
-      setStirError('STIR aniq 9 xonali raqam bo\'lishi shart!');
+    const expectedLen = stirFieldLength(type);
+    const fieldLabel = stirFieldLabel(type);
+    if (cleanStir.length !== expectedLen || !/^\d+$/.test(cleanStir)) {
+      setStirError(`${fieldLabel} aniq ${expectedLen} xonali raqam bo'lishi shart!`);
       return;
     }
     if (clients.some(c => c.stir === cleanStir)) {
-      setStirError('Bu STIR raqami bo\'yicha mijoz allaqachon mavjud!');
+      setStirError(`Bu ${fieldLabel} raqami bo'yicha mijoz allaqachon mavjud!`);
       return;
     }
     setStirError('');
@@ -118,30 +121,30 @@ export const ClientList: React.FC = () => {
       {/* Header & Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl font-black text-slate-900">Mijozlar Boshqaruvi</h1>
-          <p className="text-[11px] text-slate-500">Tashkilot va YaTT larning to'liq bazasi, mas'ul buxgalterlar va 360° holat nazorati</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900">Mijozlar</h1>
+          <p className="text-[11px] text-neutral-500 font-medium">Tashkilot va YaTT larning to'liq bazasi, mas'ul buxgalterlar va 360° holat nazorati</p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-black hover:bg-neutral-800 text-white text-xs font-bold transition-all cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" /> Yangi Mijoz Qo'shish
+            <Plus className="w-3.5 h-3.5" /> Yangi mijoz
           </button>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700 shadow-2xs flex flex-wrap items-center gap-2">
+      <div className="p-2.5 bg-white rounded-xl border border-neutral-200 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-neutral-400" />
           <input
             type="text"
-            placeholder="Nomi, 9 xonali STIR, telefon yoki buxgalter..."
+            placeholder="Nomi, STIR/JSHSHR, telefon yoki buxgalter..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs outline-none focus:border-emerald-500 focus:bg-slate-600 transition-all font-medium text-white placeholder:text-slate-400"
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-neutral-200 rounded text-xs outline-none focus:border-neutral-400 transition-all font-medium text-neutral-900 placeholder:text-neutral-400"
           />
         </div>
 
@@ -149,7 +152,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-700 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Turlar (YaTT / Yuridik)</option>
           <option value="YURIDIK">Yuridik shaxs (MCHJ, XK)</option>
@@ -160,7 +163,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterTaxType}
           onChange={(e) => setFilterTaxType(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-700 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Soliq Turlari</option>
           <option value="QQS_FOYDA">QQS + Foyda solig'i</option>
@@ -172,7 +175,7 @@ export const ClientList: React.FC = () => {
         <select
           value={filterAccountant}
           onChange={(e) => setFilterAccountant(e.target.value)}
-          className="px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-slate-300 outline-none cursor-pointer"
+          className="px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-700 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha Mas'ullar</option>
           {employees.map(emp => (
@@ -182,10 +185,10 @@ export const ClientList: React.FC = () => {
       </div>
 
       {/* Clients Table */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs table-dense">
-            <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-700 uppercase tracking-wider text-[10px]">
+            <thead className="bg-[#f9f9f9] text-[#777777] font-semibold border-b border-neutral-200 uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="px-3 py-2">Korxona Nomi & STIR</th>
                 <th className="px-3 py-2">Turi & Soliq</th>
@@ -195,10 +198,10 @@ export const ClientList: React.FC = () => {
                 <th className="px-3 py-2 text-right">Amallar</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700 font-sans">
+            <tbody className="divide-y divide-neutral-100 font-sans">
               {filteredClients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-slate-400">
+                  <td colSpan={6} className="p-6 text-center text-neutral-500">
                     Qidiruv natijasida mijoz topilmadi.
                   </td>
                 </tr>
@@ -207,7 +210,7 @@ export const ClientList: React.FC = () => {
                   const clientReports = taxReports.filter(r => r.clientId === client.id && r.status !== 'TALAB_QILINMAYDI');
                   const reportsDone = clientReports.every(r => r.status === 'TOPSHIRILDI');
                   const client1C = accounting1C.find(a => a.clientId === client.id);
-                  const is1CDone = client1C?.oborotkaStatus === 'KIRITILGAN';
+                  const is1CDone = isOborotkaActive(client1C);
                   const clientPay = payments.find(p => p.clientId === client.id);
                   const isPaid = clientPay?.status === 'TOLANGAN';
                   const clientL = letters.filter(l => l.clientId === client.id);
@@ -219,14 +222,14 @@ export const ClientList: React.FC = () => {
                     <tr
                       key={client.id}
                       onClick={() => openClientCard(client.id)}
-                      className="hover:bg-slate-700/50 transition-colors cursor-pointer group"
+                      className="hover:bg-neutral-50 transition-colors cursor-pointer group"
                     >
                       {/* Name & STIR */}
                       <td className="px-3 py-2">
-                        <div className="font-bold text-white group-hover:text-emerald-400 text-xs">{client.name}</div>
+                        <div className="font-bold text-neutral-900 text-xs">{client.name}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="font-mono text-slate-400 bg-slate-700 border border-slate-600 px-1 py-0.2 rounded text-[10px] font-semibold">
-                            STIR: {client.stir}
+                          <span className="font-mono text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                            {stirFieldLabel(client.type)}: {client.stir}
                           </span>
                         </div>
                       </td>
@@ -234,12 +237,10 @@ export const ClientList: React.FC = () => {
                       {/* Type & Tax */}
                       <td className="px-3 py-2">
                         <div className="flex flex-col gap-0.5 items-start">
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${
-                            client.type === 'YATT' ? 'bg-amber-900/50 text-amber-400 border-amber-700' : 'bg-blue-900/50 text-blue-400 border-blue-700'
-                          }`}>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#f0f0f0] text-neutral-900">
                             {client.type}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium font-mono">
+                          <span className="text-[10px] text-neutral-500 font-medium font-mono">
                             {client.taxType}
                           </span>
                         </div>
@@ -247,13 +248,13 @@ export const ClientList: React.FC = () => {
 
                       {/* Accountant */}
                       <td className="px-3 py-2">
-                        <div className="font-semibold text-slate-300 text-xs">{client.accountantName}</div>
+                        <div className="font-semibold text-neutral-700 text-xs">{client.accountantName}</div>
                       </td>
 
                       {/* Phone & Fee */}
                       <td className="px-3 py-2 font-mono">
-                        <div className="text-slate-300 text-[11px]">{client.phone}</div>
-                        <div className="font-bold text-emerald-400 text-[10px] mt-0.5">
+                        <div className="text-neutral-700 text-[11px]">{client.phone}</div>
+                        <div className="font-bold text-neutral-900 text-[10px] mt-0.5">
                           {(client.monthlyFee || 0).toLocaleString()} so'm/oy
                         </div>
                       </td>
@@ -261,30 +262,25 @@ export const ClientList: React.FC = () => {
                       {/* 360 Health Dots */}
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-1.5 text-xs">
-                          {/* Reports dot */}
                           <span 
                             title={reportsDone ? "Barcha hisobotlar topshirildi" : "Hisobotlar kutilmoqda"} 
-                            className={`w-2.5 h-2.5 rounded-full ${reportsDone ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}
+                            className={`w-2.5 h-2.5 rounded-full ${reportsDone ? 'bg-neutral-800' : 'bg-neutral-300'}`}
                           />
-                          {/* 1C dot */}
                           <span 
                             title={is1CDone ? "1C oborotka kiritilgan" : "1C oborotka kiritilmagan"} 
-                            className={`w-2.5 h-2.5 rounded-full ${is1CDone ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                            className={`w-2.5 h-2.5 rounded-full ${is1CDone ? 'bg-neutral-800' : 'bg-neutral-300'}`}
                           />
-                          {/* Payment dot */}
                           <span 
                             title={isPaid ? "To'lov amalga oshirilgan" : "Qarzdorlik mavjud"} 
-                            className={`w-2.5 h-2.5 rounded-full ${isPaid ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                            className={`w-2.5 h-2.5 rounded-full ${isPaid ? 'bg-neutral-800' : 'bg-neutral-300'}`}
                           />
-                          {/* Letters dot */}
                           <span 
                             title={hasNewLetter ? "Yangi o'qilmagan xat bor" : "Xatlar yo'q yoki javob berilgan"} 
-                            className={`w-2.5 h-2.5 rounded-full ${hasNewLetter ? 'bg-purple-500 animate-bounce' : 'bg-slate-300'}`}
+                            className={`w-2.5 h-2.5 rounded-full ${hasNewLetter ? 'bg-neutral-800' : 'bg-neutral-300'}`}
                           />
-                          {/* Kameral dot */}
                           <span 
                             title={hasKameralIssue ? "Kameral muammo bor" : "Kameral toza"} 
-                            className={`w-2.5 h-2.5 rounded-full ${hasKameralIssue ? 'bg-rose-600' : 'bg-slate-300'}`}
+                            className={`w-2.5 h-2.5 rounded-full ${hasKameralIssue ? 'bg-neutral-800' : 'bg-neutral-300'}`}
                           />
                         </div>
                       </td>
@@ -295,10 +291,10 @@ export const ClientList: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setClientForConfigForms(client)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer"
+                            className="p-1.5 rounded bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 font-semibold text-[10px] flex items-center gap-1 transition-colors cursor-pointer"
                             title="Admin: Hisobot shakllarini sozlash"
                           >
-                            <Sliders className="w-3 h-3 text-slate-600" />
+                            <Sliders className="w-3 h-3 text-neutral-600" />
                             <span>Shakllar</span>
                           </button>
                           {canDeleteClient && (
@@ -310,7 +306,7 @@ export const ClientList: React.FC = () => {
                                   deleteClient(client.id);
                                 }
                               }}
-                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-colors cursor-pointer"
+                              className="p-1.5 rounded bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-[10px] font-semibold transition-colors cursor-pointer"
                               title="Mijozni o'chirish"
                             >
                               O'chirish
@@ -319,7 +315,7 @@ export const ClientList: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => openClientCard(client.id)}
-                            className="inline-flex items-center gap-0.5 text-emerald-700 font-bold hover:translate-x-0.5 transition-transform text-[11px] p-1 cursor-pointer"
+                            className="inline-flex items-center gap-0.5 text-neutral-900 font-bold hover:translate-x-0.5 transition-transform text-[11px] p-1 cursor-pointer"
                           >
                             360° <ArrowUpRight className="w-3.5 h-3.5" />
                           </button>
@@ -334,24 +330,24 @@ export const ClientList: React.FC = () => {
         </div>
 
         {/* Table Footer */}
-        <div className="px-3 py-2 bg-slate-900 border-t border-slate-700 text-[11px] text-slate-400 flex items-center justify-between font-mono">
-          <span>Jami: <strong className="text-white">{filteredClients.length} ta</strong> / {clients.length} ta</span>
-          <span className="text-[10px] text-slate-500 font-sans">360° to'liq kartani ko'rish uchun istalgan qator ustiga bosing</span>
+        <div className="px-3 py-2 bg-white border-t border-neutral-200 text-[11px] text-neutral-500 flex items-center justify-between font-mono">
+          <span>Jami: <strong className="text-neutral-900">{filteredClients.length} ta</strong> / {clients.length} ta</span>
+          <span className="text-[10px] text-neutral-400 font-sans">360° to'liq kartani ko'rish uchun istalgan qator ustiga bosing</span>
         </div>
       </div>
 
       {/* Add Client Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
-            <div className="flex items-center justify-between p-4 bg-slate-900 text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-white text-neutral-900">
               <div className="flex items-center gap-2 font-bold text-sm">
-                <Building2 className="w-5 h-5 text-emerald-400" />
+                <Building2 className="w-5 h-5 text-neutral-700" />
                 <span>Yangi Mijoz Qo'shish</span>
               </div>
               <button 
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="text-neutral-500 hover:text-neutral-900 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -359,53 +355,58 @@ export const ClientList: React.FC = () => {
 
             <form onSubmit={handleAddSubmit} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Korxona yoki YaTT Nomi *</label>
+                <label className="block font-bold text-neutral-700 mb-1">Korxona yoki YaTT Nomi *</label>
                 <input
                   type="text"
                   placeholder="Masalan: 'ASIA LOGISTICS' MCHJ"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 focus:bg-white"
+                  className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none focus:border-black"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">9 xonali STIR *</label>
+                  <label className="block font-bold text-neutral-700 mb-1">
+                    {stirFieldLength(type)} xonali {stirFieldLabel(type)} *
+                  </label>
                   <input
                     type="text"
-                    maxLength={9}
-                    placeholder="308192847"
+                    maxLength={stirFieldLength(type)}
+                    placeholder={type === 'YATT' ? '30204901234567' : '308192847'}
                     value={stir}
-                    onChange={(e) => setStir(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-emerald-600 focus:bg-white"
+                    onChange={(e) => setStir(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs font-mono outline-none focus:border-black"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tashkiliy Turi *</label>
+                  <label className="block font-bold text-neutral-700 mb-1">Tashkiliy Turi *</label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value as ClientType)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                    onChange={(e) => {
+                      setType(e.target.value as ClientType);
+                      setStirError('');
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none"
                   >
                     <option value="YURIDIK">Yuridik shaxs (MCHJ / XK)</option>
-                    <option value="YATT">YaTT</option>
+                    <option value="YATT">YaTT (STIR o'rniga JSHSHR)</option>
                   </select>
                 </div>
               </div>
 
               {stirError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-semibold">
+                <div className="p-2.5 bg-[#fff4e5] border border-[#f5d5a8] text-[#b76e00] rounded-lg text-xs font-semibold">
                   {stirError}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Soliq Tizimi *</label>
+                  <label className="block font-bold text-neutral-700 mb-1">Soliq Tizimi *</label>
                   <select
                     value={taxType}
                     onChange={(e) => {
@@ -419,7 +420,7 @@ export const ClientList: React.FC = () => {
                         setSelectedAddReports(['AYLANMA', 'JSHDS', 'INPS']);
                       }
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none"
                   >
                     <option value="AYLANMA">Aylanma soliq (4%)</option>
                     <option value="QQS">QQS (12%)</option>
@@ -429,11 +430,11 @@ export const ClientList: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Mas'ul Buxgalter *</label>
+                  <label className="block font-bold text-neutral-700 mb-1">Mas'ul Buxgalter *</label>
                   <select
                     value={accountantId}
                     onChange={(e) => setAccountantId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none"
                   >
                     {employees.map(e => (
                       <option key={e.id} value={e.id}>{e.name} ({e.position})</option>
@@ -443,13 +444,13 @@ export const ClientList: React.FC = () => {
               </div>
 
               {/* Admin Required Report Forms Selector */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="p-3 bg-white border border-neutral-200 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="font-bold text-neutral-800 text-[11px] flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-neutral-600" />
                     Topshirishi shart bo'lgan hisobot shakllari (Admin):
                   </span>
-                  <span className="text-[10px] text-emerald-700 font-bold font-mono">
+                  <span className="text-[10px] text-neutral-600 font-bold font-mono">
                     {selectedAddReports.length} ta shakl
                   </span>
                 </div>
@@ -467,8 +468,8 @@ export const ClientList: React.FC = () => {
                         }}
                         className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
                           isChecked 
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' 
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-black text-white border-black' 
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
                         }`}
                       >
                         {r.type} {isChecked ? '✓' : ''}
@@ -480,48 +481,48 @@ export const ClientList: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Telefon Raqami</label>
+                  <label className="block font-bold text-neutral-700 mb-1">Telefon Raqami</label>
                   <input
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 focus:bg-white"
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none focus:border-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Oylik To'lov (so'm)</label>
+                  <label className="block font-bold text-neutral-700 mb-1">Oylik To'lov (so'm)</label>
                   <input
                     type="number"
                     value={monthlyFee}
                     onChange={(e) => setMonthlyFee(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 focus:bg-white"
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none focus:border-black"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Manzil & Izoh</label>
+                <label className="block font-bold text-neutral-700 mb-1">Manzil & Izoh</label>
                 <textarea
                   rows={2}
                   placeholder="Yuridik manzil va boshqa muhim qaydlar..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 focus:bg-white"
+                  className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none focus:border-black"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+              <div className="pt-3 border-t border-neutral-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-neutral-700 border border-neutral-200 hover:bg-neutral-50 font-bold cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold cursor-pointer"
                 >
                   Mijozni Saqlash
                 </button>

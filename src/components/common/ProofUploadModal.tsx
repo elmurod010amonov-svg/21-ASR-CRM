@@ -103,52 +103,47 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!selectedFile) {
+      setError('Isbot fayli yuklanmaguncha yakunlab bo\'lmaydi. Iltimos, JPG, PNG yoki PDF hujjat yuklang.');
+      return;
+    }
+
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
 
-    const proof: ProofAttachment = selectedFile
-      ? {
-          name: selectedFile.name,
-          type: selectedFile.type,
-          url: selectedFile.dataUrl,
-          size: selectedFile.size,
-          uploadedAt: formatted,
-          uploadedBy: currentUser.name,
-          comment: comment.trim() || undefined,
-        }
-      : {
-          name: 'Isbot yuborilmagan',
-          type: 'application/octet-stream',
-          url: '',
-          size: 'No file',
-          uploadedAt: formatted,
-          uploadedBy: currentUser.name,
-          comment: comment.trim() || undefined,
-        };
+    const proof: ProofAttachment = {
+      name: selectedFile.name,
+      type: selectedFile.type,
+      url: selectedFile.dataUrl,
+      size: selectedFile.size,
+      uploadedAt: formatted,
+      uploadedBy: currentUser.name,
+      comment: comment.trim() || undefined,
+    };
 
     onConfirm(proof, comment.trim() || undefined);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-5 py-4 bg-white text-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 flex items-center justify-center">
               <FileCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-white leading-tight">{title}</h3>
-              <p className="text-[11px] text-slate-300">
+              <h3 className="font-extrabold text-sm text-slate-900 leading-tight">{title}</h3>
+              <p className="text-[11px] text-slate-700">
                 {subtitle || 'Isbotsiz tasdiqlashga yo\'l qo\'yilmaydi'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -158,7 +153,7 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
           {/* Target details card */}
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{targetLabel}</div>
+            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">{targetLabel}</div>
             <div className="font-extrabold text-slate-900 text-sm">{targetName}</div>
             {clientInfo && (
               <div className="text-emerald-700 font-semibold text-xs flex items-center gap-1.5 mt-0.5">
@@ -172,8 +167,8 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
           <div className="space-y-1.5">
             <label className="block font-bold text-slate-800 flex items-center justify-between">
               <span>Bajarilganlik Isboti (JPG, PNG yoki PDF)</span>
-              <span className="text-[11px] text-slate-500 font-semibold">
-                Ixtiyoriy
+              <span className="text-[11px] text-rose-600 font-extrabold uppercase tracking-wide">
+                Majburiy
               </span>
             </label>
 
@@ -207,7 +202,7 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
                   <div className="font-bold text-slate-800 text-xs">
                     Faylni bu yerga tashlang yoki <span className="text-emerald-700 underline">tanlang</span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
+                  <div className="text-[11px] text-slate-600 mt-0.5">
                     JPG, PNG skrinshotlar, to'lov kvitansiyasi yoki PDF hujjat (max 10MB)
                   </div>
                 </div>
@@ -278,7 +273,7 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
 
           {/* Verification info badge */}
           <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 leading-relaxed">
-            <strong>Muhim qoida:</strong> Isbot yuklash ixtiyoriy. Agar fayl mavjud bo'lsa, bosh buxgalter va direktor tomonidan ko'rib chiqiladi; bo'lmasa ham vazifa topshirilgan deb qayd etish mumkin.
+            <strong>Muhim qoida:</strong> Isbot fayli (JPG, PNG yoki PDF) yuklanmaguncha yakunlab bo'lmaydi. Yuklangan fayl bosh buxgalter va direktor tomonidan ko'rib chiqiladi.
           </div>
 
           {/* Actions */}
@@ -292,7 +287,8 @@ export const ProofUploadModal: React.FC<ProofUploadModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer scale-100 active:scale-95"
+              disabled={!selectedFile}
+              className="px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer scale-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
             >
               <CheckCircle2 className="w-4 h-4" />
               {actionLabel}

@@ -1,26 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  Search, 
-  Bell, 
-  Calendar, 
-  ShieldCheck, 
-  User, 
-  ChevronDown, 
-  Sparkles, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+import {
+  Search,
+  Bell,
+  Calendar,
+  User,
+  ChevronDown,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   Activity
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { UserRole } from '../../types';
 
 export const Navbar: React.FC = () => {
-  const { 
-    currentUser, 
-    employees, 
-    switchUserRole, 
-    setGlobalSearchOpen, 
+  const {
+    currentUser,
+    setGlobalSearchOpen,
     currentPeriod, 
     notifications, 
     markNotificationAsRead, 
@@ -30,15 +26,23 @@ export const Navbar: React.FC = () => {
     scanResult,
     runDatabaseScan,
     updateEmployeeAvatar,
-    setIsScannerModalOpen
+    setIsScannerModalOpen,
+    setPendingChatRoomId,
   } = useCRM();
 
 
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
-  const unreadNotifs = notifications.filter(n => !n.read);
+  const unreadNotifs = notifications.filter(n => {
+    if (n.read) return false;
+    if (!n.recipientIds || n.recipientIds.length === 0) return true;
+    return n.recipientIds.includes(currentUser.id);
+  });
+  const myNotifications = notifications.filter(n => {
+    if (!n.recipientIds || n.recipientIds.length === 0) return true;
+    return n.recipientIds.includes(currentUser.id);
+  });
   const currentHealth = scanResult?.healthScore ?? 100;
   const issuesCount = scanResult?.totalIssues ?? 0;
 
@@ -73,25 +77,25 @@ export const Navbar: React.FC = () => {
       {/* Left: Brand Identity & Fast Search */}
       <div className="flex items-center gap-3 md:gap-5">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('Dashboard')}>
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold text-sm shadow-xs">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-black text-white font-extrabold text-sm">
             21
           </div>
           <div className="hidden sm:block min-w-0">
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="font-extrabold text-slate-900 text-sm whitespace-nowrap tracking-normal">21-ASRCRM</span>
-              <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 uppercase">PRO</span>
+          <span className="font-extrabold text-neutral-900 text-sm whitespace-nowrap tracking-normal">21-ASR CRM</span>
+              <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold bg-neutral-100 text-neutral-700 uppercase">PRO</span>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium leading-none mt-1 whitespace-nowrap">Buxgalteriya & Nazorat</p>
+            <p className="text-[10px] text-neutral-500 font-medium leading-none mt-1 whitespace-nowrap">Buxgalteriya & Nazorat</p>
           </div>
         </div>
 
         {/* Global Search Bar button */}
         <button
           onClick={() => setGlobalSearchOpen(true)}
-          className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-100/90 hover:bg-slate-200/80 border border-slate-200 text-slate-500 transition-all text-xs font-medium w-40 md:w-64 lg:w-72 group shadow-2xs cursor-pointer"
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-600 transition-all text-xs font-semibold w-40 md:w-64 lg:w-72 group cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
-          <span className="truncate text-slate-500 text-[11px]">Mijoz, STIR, xat, hisobot...</span>
+          <Search className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-700 transition-colors" />
+          <span className="truncate text-neutral-500 text-[11px] font-medium">Mijoz, STIR, xat, hisobot...</span>
           <kbd className="ml-auto hidden md:inline-flex px-1.5 py-0.5 text-[9px] font-mono font-semibold bg-white border border-slate-300 rounded text-slate-500">
             ⌘K
           </kbd>
@@ -137,68 +141,12 @@ export const Navbar: React.FC = () => {
           </span>
         </div>
 
-        {/* Dynamic Role Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setRoleDropdownOpen(!roleDropdownOpen);
-              setNotifDropdownOpen(false);
-              setProfileDropdownOpen(false);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-800 transition-all shadow-2xs cursor-pointer"
-            title="Rolni almashtirish"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline font-semibold text-[11px]">Rol:</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-              currentUser.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
-              currentUser.role === 'DIREKTOR' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-              currentUser.role === 'NAZORATCHI' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-              currentUser.role === 'KASSIR' ? 'bg-cyan-100 text-cyan-800 border border-cyan-200' :
-              'bg-emerald-100 text-emerald-800 border border-emerald-200'
-            }`}>
-              {currentUser.role}
-            </span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </button>
-
-          {roleDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-50 animate-in fade-in duration-100">
-              <div className="px-2.5 py-1.5 border-b border-slate-100">
-                <div className="text-xs font-bold text-slate-800">Foydalanuvchi va Rol Tanlash</div>
-                <div className="text-[10px] text-slate-400">Tizimni istalgan rol nomidan tekshirib ko'ring:</div>
-              </div>
-              <div className="mt-1 space-y-0.5">
-                {employees.map((emp) => (
-                  <button
-                    key={emp.id}
-                    onClick={() => {
-                      switchUserRole(emp.role, emp.id);
-                      setRoleDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
-                      currentUser.id === emp.id ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200' : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <img src={emp.avatar} alt={emp.name} className="w-6 h-6 rounded-full object-cover shrink-0" />
-                    <div className="flex-1 truncate">
-                      <div className="font-semibold text-slate-900 truncate text-[11px]">{emp.name}</div>
-                      <div className="text-[9px] text-slate-400">{emp.position}</div>
-                    </div>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                      emp.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-800' :
-                      emp.role === 'DIREKTOR' ? 'bg-blue-100 text-blue-800' :
-                      emp.role === 'NAZORATCHI' ? 'bg-amber-100 text-amber-800' :
-                      emp.role === 'KASSIR' ? 'bg-cyan-100 text-cyan-800' :
-                      'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {emp.role === 'SUPER_ADMIN' ? 'Admin' : emp.role === 'DIREKTOR' ? 'Direktor' : emp.role === 'NAZORATCHI' ? 'Audit' : emp.role === 'KASSIR' ? 'Kassir' : 'Buxgalter'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Current Role Badge (read-only — hech kim boshqa profilga o'ta olmaydi) */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-800 shadow-2xs">
+          <span className="font-semibold text-[11px]">Rol:</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-800 border border-neutral-200">
+            {currentUser.role}
+          </span>
         </div>
 
         {/* Notifications Popover */}
@@ -206,7 +154,6 @@ export const Navbar: React.FC = () => {
           <button
             onClick={() => {
               setNotifDropdownOpen(!notifDropdownOpen);
-              setRoleDropdownOpen(false);
               setProfileDropdownOpen(false);
             }}
             className="relative p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer shadow-2xs"
@@ -234,7 +181,7 @@ export const Navbar: React.FC = () => {
                 {unreadNotifs.length > 0 && (
                   <button 
                     onClick={markAllNotificationsAsRead}
-                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-semibold cursor-pointer"
+                    className="text-[10px] text-neutral-700 hover:text-black font-semibold cursor-pointer"
                   >
                     Barchasini o'qildi qilish
                   </button>
@@ -242,19 +189,22 @@ export const Navbar: React.FC = () => {
               </div>
 
               <div className="max-h-80 overflow-y-auto p-1 divide-y divide-slate-100">
-                {notifications.length === 0 ? (
+                {myNotifications.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400">Hech qanday xabarnoma yo'q</div>
                 ) : (
-                  notifications.map((n) => (
+                  myNotifications.map((n) => (
                     <div
                       key={n.id}
                       onClick={() => {
                         markNotificationAsRead(n.id);
+                        if (n.linkModule === 'Chat' && n.relatedId) {
+                          setPendingChatRoomId(n.relatedId);
+                        }
                         if (n.linkModule) setActiveTab(n.linkModule);
                         setNotifDropdownOpen(false);
                       }}
                       className={`p-2 rounded-lg transition-all cursor-pointer ${
-                        n.read ? 'hover:bg-slate-50 opacity-75' : 'bg-emerald-50/60 hover:bg-emerald-100/60 font-medium'
+                        n.read ? 'hover:bg-neutral-50 opacity-75' : 'bg-neutral-50 hover:bg-neutral-100 font-medium'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -280,7 +230,6 @@ export const Navbar: React.FC = () => {
           <button
             onClick={() => {
               setProfileDropdownOpen(!profileDropdownOpen);
-              setRoleDropdownOpen(false);
               setNotifDropdownOpen(false);
             }}
             className="flex items-center gap-1.5 p-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
@@ -288,7 +237,7 @@ export const Navbar: React.FC = () => {
             <img 
               src={currentUser.avatar} 
               alt={currentUser.name} 
-              className="w-6 h-6 rounded-md object-cover ring-1 ring-emerald-500/40"
+              className="w-6 h-6 rounded-md object-cover ring-1 ring-neutral-300"
             />
             <div className="hidden xl:block text-left pr-1">
               <div className="text-[11px] font-bold text-slate-900 leading-tight truncate max-w-[100px]">{currentUser.name}</div>
@@ -304,7 +253,7 @@ export const Navbar: React.FC = () => {
                 <div className="overflow-hidden flex-1 min-w-0">
                   <div className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</div>
                   <div className="text-[10px] text-slate-500 truncate">{currentUser.email}</div>
-                  <div className="text-[9px] font-semibold text-emerald-600 mt-0.5 font-mono">{currentUser.phone}</div>
+                  <div className="text-[9px] font-semibold text-neutral-600 mt-0.5 font-mono">{currentUser.phone}</div>
                 </div>
               </div>
               <div className="p-1 space-y-0.5 text-xs">
@@ -315,7 +264,7 @@ export const Navbar: React.FC = () => {
                     className="hidden"
                     onChange={handleOwnAvatarUpload}
                   />
-                  <User className="w-3.5 h-3.5 text-emerald-600" /> Profil rasmini yuklash (JPG/PNG)
+                  <User className="w-3.5 h-3.5 text-neutral-600" /> Profil rasmini yuklash (JPG/PNG)
                 </label>
                 <button
                   onClick={() => {
@@ -324,7 +273,7 @@ export const Navbar: React.FC = () => {
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-medium text-[11px]"
                 >
-                  <Activity className="w-3.5 h-3.5 text-emerald-600" /> Baza Diagnostikasi & Skaner
+                  <Activity className="w-3.5 h-3.5 text-neutral-600" /> Baza Diagnostikasi & Skaner
                 </button>
                 <button
                   onClick={() => {

@@ -28,6 +28,7 @@ export const IssuesView: React.FC = () => {
     createIssue,
     deleteIssue,
     clients,
+    employees,
     currentUser,
     openClientCard
   } = useCRM();
@@ -42,9 +43,16 @@ export const IssuesView: React.FC = () => {
 
   // New issue form
   const [clientId, setClientId] = useState(clients[0]?.id || '');
+  const [accountantId, setAccountantId] = useState(clients[0]?.accountantId || '');
   const [type, setType] = useState('1C va Hisobot tafovuti');
   const [description, setDescription] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('2026-08-16');
+
+  const handleClientChange = (id: string) => {
+    setClientId(id);
+    const client = clients.find(c => c.id === id);
+    if (client) setAccountantId(client.accountantId);
+  };
 
   const filtered = issues.filter(i => {
     const matchesSearch = 
@@ -60,13 +68,14 @@ export const IssuesView: React.FC = () => {
     e.preventDefault();
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
+    const assignedEmployee = employees.find(e => e.id === accountantId);
 
     createIssue({
       clientId: client.id,
       clientName: client.name,
       stir: client.stir,
-      accountantId: client.accountantId,
-      accountantName: client.accountantName,
+      accountantId: assignedEmployee?.id || client.accountantId,
+      accountantName: assignedEmployee?.name || client.accountantName,
       type,
       description,
       creatorId: currentUser.id,
@@ -124,7 +133,7 @@ export const IssuesView: React.FC = () => {
       {/* Filter and Search */}
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
           <input
             type="text"
             placeholder="Mijoz nomi, STIR yoki kamchilik izohi..."
@@ -148,7 +157,7 @@ export const IssuesView: React.FC = () => {
       {/* Issues List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
+          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-600">
             Kamchiliklar mavjud emas.
           </div>
         ) : (
@@ -303,11 +312,11 @@ export const IssuesView: React.FC = () => {
 
       {/* Add Issue Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-slate-900 text-sm">Yangi Kamchilik Qayd Etish</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-600 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -317,11 +326,24 @@ export const IssuesView: React.FC = () => {
                 <label className="block text-slate-600 mb-1 font-bold">Mijozni tanlang:</label>
                 <select
                   value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
+                  onChange={(e) => handleClientChange(e.target.value)}
                   className="w-full px-3 py-2 border rounded-xl outline-none"
                 >
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name} ({c.stir})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 mb-1 font-bold">Mas'ul xodim biriktirish:</label>
+                <select
+                  value={accountantId}
+                  onChange={(e) => setAccountantId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-xl outline-none"
+                >
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name} ({emp.position})</option>
                   ))}
                 </select>
               </div>

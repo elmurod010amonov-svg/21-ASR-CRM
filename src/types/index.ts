@@ -12,7 +12,24 @@ export interface UserPermission {
   ai_advanced_tools: boolean;
 }
 
-export type GiftType = 'FAXRIY_YORLIQ' | 'PUL_MUKOFOTI' | 'TOVAR_SOVGA' | 'QOSHIMCHA_TATIL' | 'MALAKA_OSHIRISH' | 'BOSHQA';
+export type GiftType =
+  | 'SAMOLYOT'
+  | 'MEDAL'
+  | 'KUBOK'
+  | 'OLTIN_SOVGA'
+  | 'FAXRIY_YORLIQ'
+  | 'PUL_MUKOFOTI'
+  | 'TOVAR_SOVGA'
+  | 'QOSHIMCHA_TATIL'
+  | 'MALAKA_OSHIRISH'
+  | 'BOSHQA';
+
+export const GIFT_PRESETS: { type: GiftType; label: string; points: number; emoji: string }[] = [
+  { type: 'SAMOLYOT', label: 'Samolyot', points: 10, emoji: '✈️' },
+  { type: 'MEDAL', label: 'Medal', points: 15, emoji: '🏅' },
+  { type: 'KUBOK', label: 'Kubok', points: 20, emoji: '🏆' },
+  { type: 'OLTIN_SOVGA', label: "Oltin sovg'a", points: 30, emoji: '👑' },
+];
 
 export interface Gift {
   id: string;
@@ -21,7 +38,7 @@ export interface Gift {
   giftType: GiftType;
   description: string;
   points: number; // Reyting ballari
-  givenBy: string; // Kim berdi (DIREKTOR yoki NAZORATCHI)
+  givenBy: string; // Kim berdi (SUPER_ADMIN, DIREKTOR yoki NAZORATCHI)
   givenAt: string;
   reason: string;
 }
@@ -48,13 +65,16 @@ export interface Employee {
 }
 
 export type ClientType = 'YATT' | 'YURIDIK';
+// YURIDIK shaxslarda STIR (9 xona), YaTT larda STIR bo'lmaydi — JSHSHR (14 xona) ishlatiladi
+export const stirFieldLabel = (type: ClientType): string => (type === 'YATT' ? 'JSHSHR' : 'STIR');
+export const stirFieldLength = (type: ClientType): number => (type === 'YATT' ? 14 : 9);
 export type TaxType = 'AYLANMA' | 'QQS' | 'FOYDA' | 'YATT_QATQIY';
 export type ClientStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
 export interface Client {
   id: string;
   name: string;
-  stir: string; // 9 digits INN
+  stir: string; // YURIDIK: 9 xonali STIR (INN); YATT: 14 xonali JSHSHR (PINFL)
   type: ClientType;
   taxType: TaxType;
   phone: string;
@@ -131,6 +151,20 @@ export interface Accounting1CRecord {
   lastUpdated?: string;
 }
 
+export type InvoiceDirection = 'KIRIM' | 'CHIQIM';
+
+export interface InvoiceRecord {
+  id: string;
+  clientId: string;
+  clientName: string;
+  stir: string;
+  direction: InvoiceDirection; // KIRIM = imzolangan (qabul qilingan), CHIQIM = yuborilgan
+  date: string; // imzolangan/yuborilgan sana
+  enteredBy: string;
+  enteredByName: string;
+  notes?: string;
+}
+
 export type PaymentStatus = 'TOLANGAN' | 'QISMAN' | 'TOLANMAGAN';
 
 export interface PaymentRecord {
@@ -146,6 +180,20 @@ export interface PaymentRecord {
   status: PaymentStatus;
   notes?: string;
   accountantId: string;
+}
+
+export interface ReceiptRecord {
+  id: string;
+  clientId: string;
+  clientName: string;
+  stir: string;
+  date: string; // '2026-09-04'
+  cashAmount: number; // Naqd summa
+  terminalAmount: number; // Terminal (karta) summasi
+  totalAmount: number; // Jami summa = cashAmount + terminalAmount
+  createdBy: string;
+  createdByName: string;
+  notes?: string;
 }
 
 export type LetterStatus = 'YANGI' | 'OQILGAN' | 'JAVOB_KUTILMOQDA' | 'JAVOB_BERILDI' | 'YOPILGAN';
@@ -168,6 +216,7 @@ export interface LetterRecord {
   attachmentUrl?: string;
   attachmentName?: string;
   notes?: string;
+  proofAttachment?: ProofAttachment;
 }
 
 export type KameralStatus = 'OCHIQ' | 'JARAYONDA' | 'JAVOB_BERILDI' | 'KAMCHILIK_ANIQLANDI' | 'YOPILGAN';
@@ -187,6 +236,7 @@ export interface KameralAudit {
   linkedIssueId?: string;
   linkedTaskId?: string;
   notes?: string;
+  proofAttachment?: ProofAttachment;
 }
 
 export type IssueStatus = 'OCHIQ' | 'JARAYONDA' | 'TUZATILDI' | 'YOPILGAN';
@@ -307,13 +357,17 @@ export interface AuditLogRecord {
 
 export interface NotificationItem {
   id: string;
-  type: 'TASK' | 'DEADLINE' | 'REPORT' | 'LETTER' | 'PAYMENT' | 'KAMERAL' | 'AI_ALERT' | 'CHAT' | 'SYSTEM';
+  type: 'TASK' | 'DEADLINE' | 'REPORT' | 'LETTER' | 'PAYMENT' | 'KAMERAL' | 'AI_ALERT' | 'CHAT' | 'SYSTEM' | 'GIFT';
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
   linkModule?: string;
   relatedId?: string;
+  /** Agar berilsa — faqat shu foydalanuvchilarga ko'rinadi; bo'sh/undefined — hammaga */
+  recipientIds?: string[];
+  /** DIREKTOR/NAZORATCHI tomonidan berilgan vazifa yoki sovga — hodim bosib ko'rmaguncha ekran tepasida qolaveradi */
+  pinned?: boolean;
 }
 
 export type AIAgentRole = 

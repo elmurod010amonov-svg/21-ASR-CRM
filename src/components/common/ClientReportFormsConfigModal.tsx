@@ -225,32 +225,32 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
         className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-5 py-4 bg-white text-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 flex items-center justify-center shrink-0">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                 <span>Hisobot Shakllarini Belgilash</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 text-[10px] font-mono">
                   Admin Nazorati
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-300 mt-0.5">
+              <p className="text-[11px] text-slate-700 mt-0.5">
                 Mijoz topshirishi shart bo'lgan barcha soliq shakllarini yoqing yoki o'chiring
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -459,7 +459,7 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
                         <div className="text-[11px] text-slate-600 font-medium mt-0.5">
                           {report.name}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="text-[10px] text-slate-600 mt-0.5">
                           {report.periodicity} &bull; {report.rateDesc}
                         </div>
                       </div>
@@ -471,21 +471,21 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
           </div>
 
           {/* Selection summary */}
-          <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between">
+          <div className="p-3 bg-white text-slate-900 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
-                <div className="text-xs font-extrabold text-white">
+                <div className="text-xs font-extrabold text-slate-900">
                   Jami belgilandi: {selectedReports.length} ta hisobot shakli
                 </div>
-                <div className="text-[11px] text-slate-300 mt-0.5 flex flex-wrap gap-1">
+                <div className="text-[11px] text-slate-700 mt-0.5 flex flex-wrap gap-1">
                   {selectedReports.map(st => (
                     <span key={st} className="px-1.5 py-0.2 rounded bg-white/10 font-mono text-[10px]">
                       {st}
                     </span>
                   ))}
                   {selectedReports.length === 0 && (
-                    <span className="text-rose-300 italic">Hech qanday hisobot tanlanmadi</span>
+                    <span className="text-rose-700 italic">Hech qanday hisobot tanlanmadi</span>
                   )}
                 </div>
               </div>
@@ -507,7 +507,7 @@ export const ClientReportFormsConfigModal: React.FC<ClientReportFormsConfigModal
             type="button"
             onClick={handleSave}
             disabled={selectedReports.length === 0}
-            className={`px-5 py-2 rounded-xl text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-5 py-2 rounded-xl text-slate-900 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               selectedReports.length > 0
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'

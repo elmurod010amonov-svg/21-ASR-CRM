@@ -50,7 +50,7 @@ export const DatabaseScannerModal: React.FC = () => {
 
   if (!currentScan) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-white/60 backdrop-blur-xs">
         <div className="bg-white rounded-2xl px-6 py-5 text-sm font-bold text-slate-700 shadow-xl">
           Baza skaneri ishga tushmoqda...
         </div>
@@ -96,27 +96,27 @@ export const DatabaseScannerModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-white/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
         className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-900 text-white">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white text-slate-900">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600">
               <Activity className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-extrabold text-base text-white tracking-tight">
+                <h2 className="font-extrabold text-base text-slate-900 tracking-tight">
                   Baza Diagnostikasi & Audit Skaneri
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-700 border border-emerald-500/30">
                   REAL-TIME SCAN
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-600">
                 Barcha jadvallar, STIRlar, hisobotlar, 1C va to'lovlar yaxlitligi tekshiruvi
               </p>
             </div>
@@ -124,7 +124,7 @@ export const DatabaseScannerModal: React.FC = () => {
 
           <button 
             onClick={() => setIsScannerModalOpen(false)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -181,7 +181,7 @@ export const DatabaseScannerModal: React.FC = () => {
         <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-100/50 border-b border-slate-200">
           {/* Health Score */}
           <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Baza Salomatligi</div>
+            <div className="text-[10px] font-bold text-slate-600 uppercase">Baza Salomatligi</div>
             <div className="flex items-center gap-2">
               <div className={`text-2xl font-black ${
                 currentScan.healthScore >= 90 ? 'text-emerald-600' :
@@ -200,14 +200,14 @@ export const DatabaseScannerModal: React.FC = () => {
 
           {/* Total Records Scanned */}
           <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Tekshirilgan Yozuvlar</div>
+            <div className="text-[10px] font-bold text-slate-600 uppercase">Tekshirilgan Yozuvlar</div>
             <div className="text-2xl font-black text-slate-900">{currentScan.totalRecords} ta</div>
-            <div className="text-[10px] text-slate-400">9 ta asosiy jadval bo'yicha</div>
+            <div className="text-[10px] text-slate-600">9 ta asosiy jadval bo'yicha</div>
           </div>
 
           {/* Discovered Issues */}
           <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Aniqlangan Holatlar</div>
+            <div className="text-[10px] font-bold text-slate-600 uppercase">Aniqlangan Holatlar</div>
             <div className="text-2xl font-black text-slate-900">{currentScan.totalIssues} ta</div>
             <div className="text-[10px] flex items-center gap-2 text-slate-500 font-semibold">
               <span className="text-rose-600">{currentScan.errorCount} xato</span>
@@ -240,14 +240,14 @@ export const DatabaseScannerModal: React.FC = () => {
         {/* Filter and Action bar */}
         <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-slate-400 font-bold text-[11px] mr-1">Bo'lim:</span>
+            <span className="text-slate-600 font-bold text-[11px] mr-1">Bo'lim:</span>
             {['ALL', 'CLIENT', 'REPORT', '1C', 'PAYMENT', 'LETTER', 'EMPLOYEE'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                   activeCategory === cat 
-                    ? 'bg-slate-900 text-white' 
+                    ? 'bg-white text-slate-900' 
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -279,7 +279,7 @@ export const DatabaseScannerModal: React.FC = () => {
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h4 className="font-extrabold text-slate-800 text-sm">Bazada Hech Qanday Kamchilik Aniqlanmadi</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <p className="text-xs text-slate-600 max-w-sm mx-auto">
                 Barcha mijozlar, 9 xonali STIRlar, hisobotlar, to'lov balanslari va xodim birikmalari 100% yaxlit va sinxron holatda!
               </p>
             </div>
@@ -334,7 +334,7 @@ export const DatabaseScannerModal: React.FC = () => {
           </span>
           <button
             onClick={() => setIsScannerModalOpen(false)}
-            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
+            className="px-4 py-1.5 bg-white hover:bg-slate-50 text-slate-900 font-bold rounded-xl cursor-pointer"
           >
             Yopish
           </button>

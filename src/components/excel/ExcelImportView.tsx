@@ -110,7 +110,7 @@ export const ExcelImportView: React.FC = () => {
         </div>
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm">Excel (.xlsx, .xls) yoki CSV faylni shu yerga tashlang</h3>
-          <p className="text-xs text-slate-400 mt-1">yoki kompyuterdan fayl tanlash uchun bosing</p>
+          <p className="text-xs text-slate-600 mt-1">yoki kompyuterdan fayl tanlash uchun bosing</p>
         </div>
         <div className="text-[11px] text-slate-500">
           Ustunlar avtomatik moslashtiriladi: <strong>Korxona nomi, 9 xonali STIR, Soliq turi, Mas'ul buxgalter, Telefon, Oylik summa</strong>

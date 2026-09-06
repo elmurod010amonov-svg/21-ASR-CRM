@@ -26,10 +26,10 @@ import {
   Sliders
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { ReportStatus, Status1C, ProofAttachment, TaxReport, ReportType } from '../../types';
-import { ProofUploadModal } from '../common/ProofUploadModal';
+import { ReportStatus, Status1C, ProofAttachment, TaxReport, ReportType, stirFieldLabel } from '../../types';
 import { ProofViewerModal } from '../common/ProofViewerModal';
 import { ClientReportFormsConfigModal } from '../common/ClientReportFormsConfigModal';
+import { isOborotkaActive, getTodayISO } from '../../utils/oborotka';
 
 export const ClientCardModal: React.FC = () => {
   const { 
@@ -59,6 +59,8 @@ export const ClientCardModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>('Umumiy');
   const [showReportConfigModal, setShowReportConfigModal] = useState<boolean>(false);
+  const [oborotkaDate, setOborotkaDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [showOborotkaDateModal, setShowOborotkaDateModal] = useState(false);
   const [paymentAmountInput, setPaymentAmountInput] = useState<string>('');
   const [paymentNotesInput, setPaymentNotesInput] = useState<string>('');
   const [showPaymentForm, setShowPaymentForm] = useState<boolean>(false);
@@ -79,7 +81,6 @@ export const ClientCardModal: React.FC = () => {
   const [showTaskForm, setShowTaskForm] = useState(false);
 
   // Tax report proof modal states
-  const [reportForProof, setReportForProof] = useState<TaxReport | null>(null);
   const [selectedProofForView, setSelectedProofForView] = useState<{
     proof: ProofAttachment;
     title: string;
@@ -123,7 +124,7 @@ export const ClientCardModal: React.FC = () => {
   const reportsTotalRequired = clientReports.filter(r => r.status !== 'TALAB_QILINMAYDI').length;
   const reportsHealth = reportsTotalRequired === 0 ? 'NEUTRAL' : reportsSubmitted === reportsTotalRequired ? 'GOOD' : 'WARNING';
 
-  const oneCHealth = client1C?.oborotkaStatus === 'KIRITILGAN' ? 'GOOD' : 'BAD';
+  const oneCHealth = isOborotkaActive(client1C) ? 'GOOD' : 'BAD';
   const paymentHealth = clientPayment?.status === 'TOLANGAN' ? 'GOOD' : clientPayment?.status === 'QISMAN' ? 'WARNING' : 'BAD';
   const letterHealth = clientLetters.some(l => l.status === 'YANGI' || l.status === 'JAVOB_KUTILMOQDA') ? 'WARNING' : 'GOOD';
   const kameralHealth = clientKameral.some(k => k.status === 'KAMCHILIK_ANIQLANDI' || k.status === 'OCHIQ') ? 'BAD' : 'GOOD';
@@ -199,32 +200,32 @@ export const ClientCardModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-white/70 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header with Client Identity */}
-        <div className="flex items-start justify-between p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 text-white border-b border-slate-800">
+        <div className="flex items-start justify-between p-5 bg-white text-slate-900 border-b border-slate-200">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+              <span className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-600">
                 <Building2 className="w-6 h-6" />
               </span>
               <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-white">{client.name}</h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-300">
-                  <span className="font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                    STIR: <strong className="text-emerald-400">{client.stir}</strong>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-900">{client.name}</h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-700">
+                  <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
+                    {stirFieldLabel(client.type)}: <strong className="text-emerald-600">{client.stir}</strong>
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${client.type === 'YATT' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${client.type === 'YATT' ? 'bg-amber-500/20 text-amber-800 border border-amber-500/30' : 'bg-blue-500/20 text-blue-800 border border-blue-500/30'}`}>
                     {client.type}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">
+                  <span className="px-2 py-0.5 rounded-full font-bold text-[11px] bg-white text-slate-800 border border-slate-200">
                     Soliq turi: {client.taxType}
                   </span>
-                  <span className="text-slate-400">
-                    Mas'ul: <strong className="text-white">{client.accountantName}</strong>
+                  <span className="text-slate-600">
+                    Mas'ul: <strong className="text-slate-900">{client.accountantName}</strong>
                   </span>
                 </div>
               </div>
@@ -242,7 +243,7 @@ export const ClientCardModal: React.FC = () => {
             )}
             <button
               onClick={closeClientCard}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -264,7 +265,7 @@ export const ClientCardModal: React.FC = () => {
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-slate-600'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -317,7 +318,7 @@ export const ClientCardModal: React.FC = () => {
                       <input type="number" value={editForm.monthlyFee} onChange={(e) => setEditForm({ ...editForm, monthlyFee: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">STIR</label>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">{stirFieldLabel(client.type)}</label>
                       <input value={client.stir} readOnly className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-500" />
                     </div>
                   </div>
@@ -336,7 +337,7 @@ export const ClientCardModal: React.FC = () => {
 
               {/* 360 Health Status Cards Strip */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Mijozning 360° Umumiy Holati</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Mijozning 360° Umumiy Holati</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   <div className={`p-3.5 rounded-xl border flex flex-col justify-between ${
                     reportsHealth === 'GOOD' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' :
@@ -408,26 +409,26 @@ export const ClientCardModal: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Contact & Contract Card */}
                 <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Aloqa va Shartnoma</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Aloqa va Shartnoma</h4>
                   <div className="space-y-2 text-xs">
                     <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-slate-400" /> Telefon:</span>
+                      <span className="text-slate-500 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-slate-600" /> Telefon:</span>
                       <span className="font-semibold text-slate-900">{client.phone}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-400" /> Manzil:</span>
+                      <span className="text-slate-500 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-600" /> Manzil:</span>
                       <span className="font-semibold text-slate-900 text-right truncate max-w-[220px]">{client.address}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-slate-400" /> Mas'ul buxgalter:</span>
+                      <span className="text-slate-500 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-slate-600" /> Mas'ul buxgalter:</span>
                       <span className="font-bold text-emerald-700">{client.accountantName}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-slate-400" /> Oylik xizmat haqqi:</span>
+                      <span className="text-slate-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-slate-600" /> Oylik xizmat haqqi:</span>
                       <span className="font-black text-slate-900">{client.monthlyFee.toLocaleString()} so'm</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
-                      <span className="text-slate-500 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400" /> Shartnoma sanasi:</span>
+                      <span className="text-slate-500 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-600" /> Shartnoma sanasi:</span>
                       <span className="font-semibold text-slate-900">{client.contractDate}</span>
                     </div>
                   </div>
@@ -436,7 +437,7 @@ export const ClientCardModal: React.FC = () => {
                 {/* Notes & Quick Actions Card */}
                 <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 flex flex-col justify-between">
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Izoh va Eslatmalar</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Izoh va Eslatmalar</h4>
                     <p className="text-xs text-slate-700 mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200/80 leading-relaxed">
                       {client.notes || "Hech qanday qo'shimcha izoh kiritilmagan."}
                     </p>
@@ -538,7 +539,7 @@ export const ClientCardModal: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {clientReports.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-4 text-center text-slate-400">Hisobotlar kiritilmagan</td>
+                        <td colSpan={5} className="p-4 text-center text-slate-600">Hisobotlar kiritilmagan</td>
                       </tr>
                     ) : (
                       clientReports.map((report) => (
@@ -583,20 +584,12 @@ export const ClientCardModal: React.FC = () => {
                             <div className="inline-flex items-center gap-1.5">
                               {report.status !== 'TOPSHIRILDI' ? (
                                 <button
-                                  onClick={() => setReportForProof(report)}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer shadow-xs flex items-center gap-1"
+                                  onClick={() => updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
+                                  className="px-2.5 py-1 rounded-lg bg-black hover:bg-neutral-800 text-white font-bold text-[11px] cursor-pointer shadow-xs flex items-center gap-1"
                                 >
                                   <span>Topshirildi ✓</span>
                                 </button>
-                              ) : (
-                                <button
-                                  onClick={() => setReportForProof(report)}
-                                  className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[11px] cursor-pointer"
-                                  title="Isbot hujjatini almashtirish"
-                                >
-                                  Isbot
-                                </button>
-                              )}
+                              ) : null}
                               {report.status !== 'JARAYONDA' && report.status !== 'TOPSHIRILDI' && (
                                 <button
                                   onClick={() => updateTaxReportStatus(report.id, 'JARAYONDA')}
@@ -634,16 +627,24 @@ export const ClientCardModal: React.FC = () => {
                     <p className="text-xs text-slate-500">Oborotka va elektron fakturalarni 1C ga o'tkazish nazorati</p>
                   </div>
                   {client1C && (
-                    <button
-                      onClick={() => toggle1COborotka(client1C.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-                        client1C.oborotkaStatus === 'KIRITILGAN'
-                          ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      }`}
-                    >
-                      {client1C.oborotkaStatus === 'KIRITILGAN' ? 'Kiritilmagan deb belgilash' : '1C Oborotka Kiritildi'}
-                    </button>
+                    isOborotkaActive(client1C) ? (
+                      <button
+                        onClick={() => toggle1COborotka(client1C.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
+                      >
+                        Kiritilmagan deb belgilash
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setOborotkaDate(getTodayISO());
+                          setShowOborotkaDateModal(true);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors bg-black text-white hover:bg-neutral-800"
+                      >
+                        1C Oborotka Kiritildi
+                      </button>
+                    )
                   )}
                 </div>
 
@@ -652,9 +653,11 @@ export const ClientCardModal: React.FC = () => {
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                       <div className="text-xs text-slate-500">Oborotka Holati</div>
                       <div className="font-bold text-sm text-slate-900">
-                        {client1C.oborotkaStatus === 'KIRITILGAN' ? '🟢 Kiritilgan' : '🔴 Kiritilmagan'}
+                        {isOborotkaActive(client1C) ? '🟢 Kiritilgan' : '🔴 Kiritilmagan'}
                       </div>
-                      <div className="text-[11px] text-slate-400">Oxirgi yangilanish: {client1C.lastUpdated || '—'}</div>
+                      <div className="text-[11px] text-slate-600">
+                        Muddat: {isOborotkaActive(client1C) && client1C.oborotkaDate ? client1C.oborotkaDate : '—'}
+                      </div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
@@ -678,7 +681,7 @@ export const ClientCardModal: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">1C yozuvi mavjud emas</p>
+                  <p className="text-xs text-slate-600">1C yozuvi mavjud emas</p>
                 )}
               </div>
             </div>
@@ -758,7 +761,7 @@ export const ClientCardModal: React.FC = () => {
                 {clientPayment && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-slate-400">Oylik Shartnoma:</span>
+                      <span className="text-slate-600">Oylik Shartnoma:</span>
                       <div className="font-bold text-slate-900 text-sm mt-0.5">{clientPayment.monthlyFee.toLocaleString()} so'm</div>
                     </div>
                     <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
@@ -766,11 +769,11 @@ export const ClientCardModal: React.FC = () => {
                       <div className="font-bold text-emerald-900 text-sm mt-0.5">{clientPayment.paidAmount.toLocaleString()} so'm</div>
                     </div>
                     <div className={`p-3 rounded-xl border ${clientPayment.debtAmount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
-                      <span className={clientPayment.debtAmount > 0 ? 'text-rose-700' : 'text-slate-400'}>Qoldiq Qarz:</span>
+                      <span className={clientPayment.debtAmount > 0 ? 'text-rose-700' : 'text-slate-600'}>Qoldiq Qarz:</span>
                       <div className="font-bold text-rose-900 text-sm mt-0.5">{clientPayment.debtAmount.toLocaleString()} so'm</div>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-slate-400">Keyingi To'lov:</span>
+                      <span className="text-slate-600">Keyingi To'lov:</span>
                       <div className="font-bold text-slate-900 text-sm mt-0.5">{clientPayment.nextDueDate}</div>
                     </div>
                   </div>
@@ -787,7 +790,7 @@ export const ClientCardModal: React.FC = () => {
               </div>
 
               {clientLetters.length === 0 ? (
-                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-600">
                   Ushbu mijoz nomiga rasmiy xatlar mavjud emas.
                 </div>
               ) : (
@@ -844,7 +847,7 @@ export const ClientCardModal: React.FC = () => {
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-900">Kameral Soliq Tekshiruvlari</h3>
               {clientKameral.length === 0 ? (
-                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-600">
                   Ushbu mijoz bo'yicha kameral tekshiruvlar yo'q.
                 </div>
               ) : (
@@ -879,7 +882,7 @@ export const ClientCardModal: React.FC = () => {
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-900">Kamchiliklar va Tafovutlar</h3>
               {clientIssues.length === 0 ? (
-                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-600">
                   Kamchiliklar mavjud emas.
                 </div>
               ) : (
@@ -895,7 +898,7 @@ export const ClientCardModal: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-slate-600">{i.description}</p>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[10px] text-slate-600">
                         Yaratdi: {i.creatorName} &bull; Deadline: {i.deadlineDate}
                       </div>
                     </div>
@@ -956,7 +959,7 @@ export const ClientCardModal: React.FC = () => {
               )}
 
               {clientTasks.length === 0 ? (
-                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+                <div className="p-6 bg-white rounded-xl border border-slate-200 text-center text-xs text-slate-600">
                   Ushbu mijozga biriktirilgan topshiriqlar yo'q.
                 </div>
               ) : (
@@ -970,7 +973,7 @@ export const ClientCardModal: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-slate-600">{t.description}</p>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[10px] text-slate-600">
                         Mas'ul: {t.assigneeNames.join(', ')} &bull; Deadline: {t.deadlineDate}
                       </div>
                     </div>
@@ -986,13 +989,13 @@ export const ClientCardModal: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900">Mijoz Tarixi va Barcha O'zgarishlar Jurnali</h3>
               <div className="bg-white rounded-xl border border-slate-200 p-3 divide-y divide-slate-100 max-h-80 overflow-y-auto text-xs">
                 {clientLogs.length === 0 ? (
-                  <div className="p-4 text-center text-slate-400">Ushbu mijoz bo'yicha audit yozuvlari topilmadi.</div>
+                  <div className="p-4 text-center text-slate-600">Ushbu mijoz bo'yicha audit yozuvlari topilmadi.</div>
                 ) : (
                   clientLogs.map((log) => (
                     <div key={log.id} className="py-2.5 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-800">{log.action}</span>
-                        <span className="text-[10px] text-slate-400">{log.timestamp}</span>
+                        <span className="text-[10px] text-slate-600">{log.timestamp}</span>
                       </div>
                       <div className="text-slate-600">
                         Xodim: <strong>{log.userName}</strong> ({log.userRole})
@@ -1022,27 +1025,6 @@ export const ClientCardModal: React.FC = () => {
         </div>
       </div>
 
-      {/* Proof Upload Modal for Tax Report */}
-      {reportForProof && (
-        <ProofUploadModal
-          isOpen={!!reportForProof}
-          title="Soliq Hisoboti Topshirilganligini Tasdiqlash"
-          subtitle="Qat'iy qoida: Soliq portali kvitansiyasi yoki skrinshoti (JPG, PNG yoki PDF) majburiy"
-          targetName={`${reportForProof.reportType} hisoboti`}
-          targetLabel="Soliq Hisoboti Shakli:"
-          clientInfo={{
-            name: client.name,
-            stir: client.stir,
-          }}
-          actionLabel="Isbotni yuklash va Topshirildi deb tasdiqlash"
-          onClose={() => setReportForProof(null)}
-          onConfirm={(proof, notes) => {
-            updateTaxReportStatus(reportForProof.id, 'TOPSHIRILDI', notes, proof);
-            setReportForProof(null);
-          }}
-        />
-      )}
-
       {/* Proof Viewer Modal */}
       {selectedProofForView && (
         <ProofViewerModal
@@ -1051,6 +1033,40 @@ export const ClientCardModal: React.FC = () => {
           targetTitle={selectedProofForView.title}
           onClose={() => setSelectedProofForView(null)}
         />
+      )}
+
+      {showOborotkaDateModal && client1C && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
+          <div className="w-full max-w-sm bg-white rounded-2xl border border-neutral-200 shadow-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-neutral-900">Oborotka muddati</h4>
+              <button type="button" onClick={() => setShowOborotkaDateModal(false)} className="text-neutral-500 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <label className="block text-xs font-bold text-neutral-700">Shu sanagacha topshirilgan</label>
+            <input
+              type="date"
+              value={oborotkaDate}
+              min={getTodayISO()}
+              onChange={(e) => setOborotkaDate(e.target.value)}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-xl text-sm outline-none"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowOborotkaDateModal(false)} className="px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer">Bekor</button>
+              <button
+                type="button"
+                onClick={() => {
+                  toggle1COborotka(client1C.id, oborotkaDate);
+                  setShowOborotkaDateModal(false);
+                }}
+                className="px-3 py-2 rounded-lg bg-black text-white text-xs font-bold cursor-pointer"
+              >
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Admin Report Forms Config Modal */}

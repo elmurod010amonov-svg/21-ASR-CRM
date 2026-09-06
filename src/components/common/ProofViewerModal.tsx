@@ -34,14 +34,14 @@ export const ProofViewerModal: React.FC<ProofViewerModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-white text-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-xs md:text-sm text-white">Bajarilganlik Isbot Hujjati</h3>
-              <p className="text-[10px] text-slate-300 truncate max-w-md">
+              <h3 className="font-extrabold text-xs md:text-sm text-slate-900">Bajarilganlik Isbot Hujjati</h3>
+              <p className="text-[10px] text-slate-700 truncate max-w-md">
                 {targetTitle || proof.name}
               </p>
             </div>
@@ -51,14 +51,14 @@ export const ProofViewerModal: React.FC<ProofViewerModalProps> = ({
             {proof.url && (
               <button
                 onClick={handleDownload}
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-900 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" /> Yuklab olish
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -95,9 +95,9 @@ export const ProofViewerModal: React.FC<ProofViewerModalProps> = ({
             </div>
           ) : (
             <div className="p-8 bg-white rounded-2xl border border-slate-200 text-center max-w-md space-y-3">
-              <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+              <FileText className="w-12 h-12 text-slate-600 mx-auto" />
               <div className="font-bold text-slate-800 text-xs">{proof.name}</div>
-              <div className="text-[11px] text-slate-400">{proof.size}</div>
+              <div className="text-[11px] text-slate-600">{proof.size}</div>
             </div>
           )}
         </div>
@@ -106,19 +106,19 @@ export const ProofViewerModal: React.FC<ProofViewerModalProps> = ({
         <div className="p-4 bg-white border-t border-slate-200 text-xs space-y-2">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
             <div>
-              <span className="text-slate-400 block font-semibold">Yuklagan xodim:</span>
+              <span className="text-slate-600 block font-semibold">Yuklagan xodim:</span>
               <strong className="text-slate-800 flex items-center gap-1 mt-0.5">
                 <User className="w-3.5 h-3.5 text-emerald-600" /> {proof.uploadedBy}
               </strong>
             </div>
             <div>
-              <span className="text-slate-400 block font-semibold">Yuklangan vaqt:</span>
+              <span className="text-slate-600 block font-semibold">Yuklangan vaqt:</span>
               <strong className="text-slate-800 flex items-center gap-1 mt-0.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" /> {proof.uploadedAt}
               </strong>
             </div>
             <div>
-              <span className="text-slate-400 block font-semibold">Fayl hajmi & formati:</span>
+              <span className="text-slate-600 block font-semibold">Fayl hajmi & formati:</span>
               <strong className="text-slate-800 font-mono mt-0.5 block">
                 {proof.size || '1.2 MB'} &bull; {proof.name.split('.').pop()?.toUpperCase()}
               </strong>

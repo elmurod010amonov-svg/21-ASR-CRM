@@ -134,7 +134,7 @@ export const TasksView: React.FC = () => {
       {/* Filter and Search */}
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
           <input
             type="text"
             placeholder="Topshiriq nomi, mijoz yoki mas'ul xodim..."
@@ -171,7 +171,7 @@ export const TasksView: React.FC = () => {
       {/* Tasks List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
+          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-600">
             Topshiriqlar topilmadi.
           </div>
         ) : (
@@ -213,7 +213,7 @@ export const TasksView: React.FC = () => {
                       className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1.5"
                     >
                       <span>Mijoz: {task.clientName}</span>
-                      <span className="font-mono text-slate-400 text-[11px]">(STIR: {task.stir})</span>
+                      <span className="font-mono text-slate-600 text-[11px]">(STIR: {task.stir})</span>
                     </div>
                   )}
                 </div>
@@ -356,11 +356,11 @@ export const TasksView: React.FC = () => {
 
       {/* Add Task Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-slate-900 text-sm">Yangi Topshiriq Berish</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-600 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>

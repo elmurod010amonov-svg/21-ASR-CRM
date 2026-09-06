@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  FileSpreadsheet, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import * as XLSX from 'xlsx';
+import {
+  FileSpreadsheet,
+  Search,
+  Filter,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Building2,
   Calendar,
   Sparkles,
@@ -25,26 +26,29 @@ import {
   FileText,
   AlertTriangle,
   Sliders,
-  Settings
+  Settings,
+  Download
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { ReportStatus, ReportType, TaxReport, Client, ProofAttachment } from '../../types';
-import { ProofUploadModal } from '../common/ProofUploadModal';
 import { ProofViewerModal } from '../common/ProofViewerModal';
 import { ClientReportFormsConfigModal } from '../common/ClientReportFormsConfigModal';
 
 export const ReportsView: React.FC = () => {
-  const { 
-    taxReports, 
-    clients, 
-    employees, 
-    currentPeriod, 
-    updateTaxReportStatus, 
+  const {
+    taxReports,
+    clients,
+    employees,
+    currentPeriod,
+    updateTaxReportStatus,
     updateAllClientTaxReports,
+    canMarkReportSubmitted,
     openClientCard,
     currentUser,
     setClientReportTypes,
-    bulkSetClientReportTypes
+    bulkSetClientReportTypes,
+    addNotification,
+    logAudit
   } = useCRM();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,10 +68,6 @@ export const ReportsView: React.FC = () => {
   // Admin Config Report Forms Modal state
   const [clientForConfigForms, setClientForConfigForms] = useState<Client | null>(null);
   const [isGlobalConfigOpen, setIsGlobalConfigOpen] = useState(false);
-
-  // Mandatory Proof Upload States
-  const [reportForProof, setReportForProof] = useState<TaxReport | null>(null);
-  const [clientForBulkProof, setClientForBulkProof] = useState<{ client: Client; activeReports: TaxReport[] } | null>(null);
 
   // Proof Viewer State
   const [selectedProofForView, setSelectedProofForView] = useState<{
@@ -199,6 +199,43 @@ export const ReportsView: React.FC = () => {
     return clientReportGroups.find(g => g.client.id === selectedClientModalId);
   }, [clientReportGroups, selectedClientModalId]);
 
+  // Hisobot davri oxirida hisobot topshirmagan barcha mijozlar ro'yxatini bitta Excel faylida yuklab olish
+  const exportNonSubmittedList = () => {
+    const nonSubmitted = taxReports.filter(r => r.status === 'TOPSHIRILMAGAN');
+    if (nonSubmitted.length === 0) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ro\'yxat bo\'sh',
+        message: `${currentPeriod.name} davri uchun topshirilmagan hisobot yo'q — barchasi topshirilgan.`,
+        linkModule: 'Hisobotlar'
+      });
+      return;
+    }
+
+    const rows = nonSubmitted.map((r, idx) => {
+      const client = clients.find(c => c.id === r.clientId);
+      const accountant = employees.find(e => e.id === r.accountantId);
+      return {
+        '№': idx + 1,
+        'Mijoz nomi': r.clientName,
+        'STIR/JSHSHR': r.stir,
+        'Turi': client?.type || '',
+        'Hisobot shakli': r.reportType,
+        'Davr': currentPeriod.name,
+        "Mas'ul buxgalter": accountant?.name || client?.accountantName || 'Tayinlanmagan',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 24 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Topshirilmaganlar');
+    const fileName = `Topshirilmagan_Hisobotlar_${currentPeriod.name.replace(/\s+/g, '_')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    logAudit('Topshirilmagan hisobotlar ro\'yxati yuklab olindi', 'Report', 'ALL', `${nonSubmitted.length} ta hisobot (${currentPeriod.name})`);
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
       {/* Header & Deadline Banner */}
@@ -210,20 +247,34 @@ export const ReportsView: React.FC = () => {
               Mijozlar bo'yicha jamlangan
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-600 mt-0.5">
             {currentPeriod.name} oylik soliq hisobotlari holati &bull; <strong>15-avgust</strong> yakuniy topshirish muddati
+          </p>
+          <p className="text-xs text-amber-700 font-semibold mt-0.5">
+            Qoida: mijoz uchun kassir to'lovni kiritmaguncha, uning hisobotini "Topshirildi" deb belgilab bo'lmaydi
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Bulk export of all clients who have NOT submitted, for the current period */}
+          <button
+            type="button"
+            onClick={exportNonSubmittedList}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            title="Joriy davr uchun hisobot topshirmagan barcha mijozlar ro'yxatini bitta Excel faylida yuklab olish"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Topshirmaganlar Ro'yxati (Excel)</span>
+          </button>
+
           {/* Admin Tax Report Forms Config Button */}
           <button
             type="button"
             onClick={() => setIsGlobalConfigOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-xs font-bold shadow-xs cursor-pointer transition-colors"
             title="Admin tomonidan mijozlar uchun soliq shakllarini (AYLANMA, QQS, FOYDA, JSHDS, INPS...) belgilash"
           >
-            <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+            <Sliders className="w-3.5 h-3.5 text-emerald-600" />
             <span>Hisobot Shakllarini Belgilash (Admin)</span>
           </button>
 
@@ -259,35 +310,12 @@ export const ReportsView: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Mandatory Proof Policy Notice Banner */}
-      <div className="p-3.5 bg-gradient-to-r from-emerald-900 via-slate-900 to-slate-900 text-white rounded-2xl shadow-xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-            <FileCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-extrabold flex items-center gap-1.5">
-              <span>Qat'iy Qoida: Hisobot topshirilganligi isboti (JPG yoki PDF) majburiy</span>
-              <span className="px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">100% Nazorat</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-0.5">
-              Soliq portali kvitansiyasi yoki tasdiqlovchi skrinshot yuklanmasa, hisobot holatini «Topshirildi» deb belgilab bo'lmaydi.
-            </div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-[11px] text-emerald-400 font-bold bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 shrink-0">
-          <ShieldCheck className="w-4 h-4" />
-          Isbotsiz tasdiqlash bloklangan
-        </div>
-      </div>
-
       {/* 4 Status Summary Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div 
           onClick={() => setStatusFilter('ALL')}
           className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'ALL' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300'
+            statusFilter === 'ALL' ? 'bg-white text-slate-900 border-emerald-500 shadow-md' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'
           }`}
         >
           <div className="text-[11px] font-bold uppercase opacity-80">Jami Korxonalar & Hisobotlar</div>
@@ -299,7 +327,7 @@ export const ReportsView: React.FC = () => {
         <div 
           onClick={() => setStatusFilter('TOPSHIRILDI')}
           className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'TOPSHIRILDI' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:border-emerald-300'
+            statusFilter === 'TOPSHIRILDI' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-600'
           }`}
         >
           <div className="text-[11px] font-bold uppercase opacity-80">🟢 To'liq Topshirildi</div>
@@ -311,7 +339,7 @@ export const ReportsView: React.FC = () => {
         <div 
           onClick={() => setStatusFilter('JARAYONDA')}
           className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'JARAYONDA' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-amber-50 text-amber-900 border-amber-200 hover:border-amber-300'
+            statusFilter === 'JARAYONDA' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-600'
           }`}
         >
           <div className="text-[11px] font-bold uppercase opacity-80">🟡 Jarayonda / Qisman</div>
@@ -323,7 +351,7 @@ export const ReportsView: React.FC = () => {
         <div 
           onClick={() => setStatusFilter('TOPSHIRILMAGAN')}
           className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'TOPSHIRILMAGAN' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-rose-50 text-rose-900 border-rose-200 hover:border-rose-300'
+            statusFilter === 'TOPSHIRILMAGAN' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-rose-50 text-rose-800 border-rose-200 hover:border-rose-600'
           }`}
         >
           <div className="text-[11px] font-bold uppercase opacity-80">🔴 Topshirilmagan</div>
@@ -334,16 +362,16 @@ export const ReportsView: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 bg-slate-800 rounded-2xl border border-slate-700 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           <div className="relative min-w-[240px] flex-1">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
             <input
               type="text"
               placeholder="Mijoz nomi, STIR yoki hisobot shakli..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-xs outline-none focus:border-emerald-500 focus:bg-slate-600 text-white placeholder:text-slate-400"
+              className="w-full pl-9 pr-4 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs outline-none focus:border-emerald-500 focus:bg-white text-slate-900 placeholder:text-slate-500"
             />
           </div>
 
@@ -351,7 +379,7 @@ export const ReportsView: React.FC = () => {
           <select
             value={taxTypeFilter}
             onChange={(e) => setTaxTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-xs font-medium text-slate-300 outline-none cursor-pointer"
+            className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-medium text-slate-700 outline-none cursor-pointer"
           >
             <option value="ALL">Barcha Hisobot Turlari</option>
             <option value="AYLANMA">Aylanma soliq</option>
@@ -369,7 +397,7 @@ export const ReportsView: React.FC = () => {
           <select
             value={accountantFilter}
             onChange={(e) => setAccountantFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-xs font-medium text-slate-300 outline-none cursor-pointer"
+            className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-medium text-slate-700 outline-none cursor-pointer"
           >
             <option value="ALL">Barcha Buxgalterlar</option>
             {employees.map(emp => (
@@ -382,13 +410,13 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={expandAll}
-              className="px-2.5 py-1.5 text-xs text-slate-600 hover:text-emerald-700 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+              className="px-2.5 py-1.5 text-xs text-slate-700 hover:text-emerald-700 hover:bg-slate-100 rounded-lg font-medium cursor-pointer"
             >
               Barchasini ochish
             </button>
             <button
               onClick={collapseAll}
-              className="px-2.5 py-1.5 text-xs text-slate-600 hover:text-emerald-700 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+              className="px-2.5 py-1.5 text-xs text-slate-700 hover:text-emerald-700 hover:bg-slate-100 rounded-lg font-medium cursor-pointer"
             >
               Barchasini yopish
             </button>
@@ -399,10 +427,10 @@ export const ReportsView: React.FC = () => {
       {/* Main Content Area */}
       {viewMode === 'GROUPED' ? (
         /* GROUPED VIEW (1 ROW PER CLIENT WITH ACCORDION & MODAL) */
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-700">
+              <thead className="bg-white text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5 w-8 text-center"></th>
                   <th className="p-3.5">Mijoz & STIR</th>
@@ -413,10 +441,10 @@ export const ReportsView: React.FC = () => {
                   <th className="p-3.5 text-right">Boshqarish & Tezkor Amallar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {filteredClientGroups.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-10 text-center text-slate-400">
+                    <td colSpan={7} className="p-10 text-center text-slate-600">
                       Mijozlar hisobotlari topilmadi.
                     </td>
                   </tr>
@@ -436,25 +464,26 @@ export const ReportsView: React.FC = () => {
                   }) => {
                     const isExpanded = !!expandedClientIds[client.id];
                     const allSubmitted = totalCount > 0 && submittedCount === totalCount;
+                    const canSubmit = canMarkReportSubmitted(client.id);
 
                     return (
                       <React.Fragment key={client.id}>
                         {/* Main Client Row */}
                         <tr 
                           onClick={() => toggleExpand(client.id)}
-                          className={`cursor-pointer transition-all hover:bg-slate-50/90 ${
-                            isExpanded ? 'bg-emerald-50/30' : ''
+                          className={`cursor-pointer transition-all hover:bg-slate-100/50 ${
+                            isExpanded ? 'bg-emerald-50' : ''
                           }`}
                         >
                           {/* Expand Icon */}
-                          <td className="p-3.5 text-center text-slate-400">
+                          <td className="p-3.5 text-center text-slate-600">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleExpand(client.id);
                               }}
-                              className="p-1 rounded-md hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
+                              className="p-1 rounded-md hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                             >
                               {isExpanded ? (
                                 <ChevronUp className="w-4 h-4 text-emerald-700 font-bold" />
@@ -467,7 +496,7 @@ export const ReportsView: React.FC = () => {
                           {/* Client Name & STIR */}
                           <td className="p-3.5">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-extrabold flex items-center justify-center text-xs shrink-0">
+                              <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 font-extrabold flex items-center justify-center text-xs shrink-0">
                                 {client.name.charAt(0)}
                               </div>
                               <div>
@@ -480,10 +509,10 @@ export const ReportsView: React.FC = () => {
                                 >
                                   {client.name}
                                 </div>
-                                <div className="text-[11px] font-mono text-slate-500 flex items-center gap-2 mt-0.5">
-                                  <span>STIR: <strong>{client.stir}</strong></span>
+                                <div className="text-[11px] font-mono text-slate-600 flex items-center gap-2 mt-0.5">
+                                  <span>STIR: <strong className="text-slate-800">{client.stir}</strong></span>
                                   <span>&bull;</span>
-                                  <span className="text-slate-600">{client.taxRegime || 'Aylanma soliq'}</span>
+                                  <span className="text-slate-700">{client.taxRegime || 'Aylanma soliq'}</span>
                                 </div>
                               </div>
                             </div>
@@ -494,18 +523,23 @@ export const ReportsView: React.FC = () => {
                             <div className="flex flex-wrap items-center gap-1.5">
                               {activeReports.map(r => (
                                 <div key={r.id} className="inline-flex items-center gap-1">
-                                  <span
-                                    className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedClientModalId(client.id);
+                                    }}
+                                    className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border transition-all flex items-center gap-1 cursor-pointer hover:brightness-95 ${
                                       r.status === 'TOPSHIRILDI'
                                         ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
                                         : r.status === 'JARAYONDA'
                                         ? 'bg-amber-100 text-amber-900 border-amber-200'
                                         : 'bg-rose-100 text-rose-900 border-rose-200'
                                     }`}
-                                    title={`${r.reportType}: ${r.status}`}
+                                    title={`${r.reportType}: ${r.status} — batafsil ko'rish uchun bosing`}
                                   >
                                     {r.reportType} {r.status === 'TOPSHIRILDI' ? '✓' : ''}
-                                  </span>
+                                  </button>
                                   {r.proofAttachment && (
                                     <button
                                       type="button"
@@ -526,7 +560,7 @@ export const ReportsView: React.FC = () => {
                                 </div>
                               ))}
                               {activeReports.length === 0 && (
-                                <span className="text-slate-400 italic text-[11px]">Hisobot talab etilmaydi</span>
+                                <span className="text-slate-600 italic text-[11px]">Hisobot talab etilmaydi</span>
                               )}
                             </div>
                           </td>
@@ -535,16 +569,16 @@ export const ReportsView: React.FC = () => {
                           <td className="p-3.5">
                             <div className="w-36 space-y-1">
                               <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-bold text-slate-800">
+                                <span className="font-bold text-slate-900">
                                   {submittedCount} / {totalCount} ta
                                 </span>
                                 <span className={`font-extrabold ${
-                                  completionPercentage === 100 ? 'text-emerald-700' : 'text-slate-600'
+                                  completionPercentage === 100 ? 'text-emerald-600' : 'text-slate-700'
                                 }`}>
                                   {completionPercentage}%
                                 </span>
                               </div>
-                              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 flex">
+                              <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-slate-300 flex">
                                 <div 
                                   className={`h-full transition-all duration-300 ${
                                     completionPercentage === 100 ? 'bg-emerald-500' : 'bg-emerald-600'
@@ -562,9 +596,9 @@ export const ReportsView: React.FC = () => {
                           </td>
 
                           {/* Accountant */}
-                          <td className="p-3.5 font-medium text-slate-700">
+                          <td className="p-3.5 font-medium text-slate-800">
                             <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              <User className="w-3.5 h-3.5 text-slate-600" />
                               <span>{accountantName}</span>
                             </div>
                           </td>
@@ -574,7 +608,7 @@ export const ReportsView: React.FC = () => {
                             {latestSubmission ? (
                               <span className="font-medium text-slate-800 text-[11px]">{latestSubmission}</span>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">Topshirilmagan</span>
+                              <span className="text-slate-600 italic text-[11px]">Topshirilmagan</span>
                             )}
                           </td>
 
@@ -585,19 +619,24 @@ export const ReportsView: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setClientForConfigForms(client)}
-                                className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                                className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
                                 title="Admin: Ushbu mijoz hisobot shakllarini sozlash"
                               >
-                                <Sliders className="w-3 h-3 text-slate-600" />
+                                <Sliders className="w-3 h-3 text-slate-700" />
                                 <span>Shakllar</span>
                               </button>
 
                               {!allSubmitted && totalCount > 0 && (
                                 <button
                                   type="button"
-                                  onClick={() => setClientForBulkProof({ client, activeReports })}
-                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-xs transition-colors"
-                                  title="Isbot (JPG/PDF) yuklab barcha hisobotlarni topshirildi qilish"
+                                  onClick={() => canSubmit && updateAllClientTaxReports(client.id, 'TOPSHIRILDI')}
+                                  disabled={!canSubmit}
+                                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-colors ${
+                                    canSubmit
+                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
+                                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                  }`}
+                                  title={canSubmit ? 'Barcha hisobotlarni topshirildi qilish' : 'Avval kassir to\'lovni kiritishi kerak'}
                                 >
                                   <CheckCheck className="w-3.5 h-3.5" /> Barchasini Topshirildi ✓
                                 </button>
@@ -606,7 +645,7 @@ export const ReportsView: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setSelectedClientModalId(client.id)}
-                                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
                               >
                                 Hisobotlar ({totalCount}) ▾
                               </button>
@@ -616,13 +655,13 @@ export const ReportsView: React.FC = () => {
 
                         {/* ACCORDION SUB-ROW: DETAILED ALL REPORTS FOR THIS CLIENT */}
                         {isExpanded && (
-                          <tr className="bg-slate-700/50 border-b border-slate-700">
+                          <tr className="bg-slate-100/50 border-b border-slate-200">
                             <td colSpan={7} className="p-4 pl-12">
-                              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-2xs space-y-3">
-                                <div className="flex items-center justify-between border-b border-slate-700 pb-2.5">
+                              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
                                   <div className="flex items-center gap-2">
-                                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                                    <span className="font-extrabold text-white text-xs">
+                                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                                    <span className="font-extrabold text-slate-900 text-xs">
                                       {client.name} — Barcha {activeReports.length} ta hisobot shakli
                                     </span>
                                   </div>
@@ -632,19 +671,25 @@ export const ReportsView: React.FC = () => {
                                       onClick={() => setClientForConfigForms(client)}
                                       className="px-2.5 py-1 rounded-md bg-indigo-900/50 hover:bg-indigo-900/70 text-indigo-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer border border-indigo-700 transition-colors"
                                     >
-                                      <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Shakllarni tahrirlash (Admin)
+                                      <Sliders className="w-3.5 h-3.5 text-indigo-600" /> Shakllarni tahrirlash (Admin)
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => setClientForBulkProof({ client, activeReports })}
-                                      className="px-2.5 py-1 rounded-md bg-emerald-900/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                                      onClick={() => canSubmit && updateAllClientTaxReports(client.id, 'TOPSHIRILDI')}
+                                      disabled={!canSubmit}
+                                      className={`px-2.5 py-1 rounded-md font-bold text-[11px] flex items-center gap-1 ${
+                                        canSubmit
+                                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 cursor-pointer'
+                                          : 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                                      }`}
+                                      title={canSubmit ? undefined : 'Avval kassir to\'lovni kiritishi kerak'}
                                     >
-                                      <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> Barchasiga isbot yuklab topshirish
+                                      <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> Barchasini Topshirildi ✓
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => updateAllClientTaxReports(client.id, 'JARAYONDA')}
-                                      className="px-2.5 py-1 rounded-md bg-amber-900/50 hover:bg-amber-900/70 text-amber-300 font-bold text-[11px] cursor-pointer"
+                                      className="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] cursor-pointer"
                                     >
                                       Barchasini jarayonda qilish
                                     </button>
@@ -655,30 +700,30 @@ export const ReportsView: React.FC = () => {
                                   {activeReports.map((report) => (
                                     <div
                                       key={report.id}
-                                      className="p-3 bg-slate-700 rounded-xl border border-slate-600 shadow-2xs space-y-2"
+                                      className="p-3 bg-slate-100 rounded-xl border border-slate-300 shadow-2xs space-y-2"
                                     >
                                       <div className="flex items-start justify-between gap-2">
                                         <div>
                                           <div className="flex items-center gap-2">
-                                            <span className="font-mono px-2 py-0.5 rounded bg-slate-600 text-white font-extrabold text-xs">
+                                            <span className="font-mono px-2 py-0.5 rounded bg-slate-600 text-slate-900 font-extrabold text-xs">
                                               {report.reportType}
                                             </span>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                              report.status === 'TOPSHIRILDI' ? 'bg-emerald-900/50 text-emerald-400' :
-                                              report.status === 'JARAYONDA' ? 'bg-amber-900/50 text-amber-400' :
-                                              'bg-rose-900/50 text-rose-400'
+                                              report.status === 'TOPSHIRILDI' ? 'bg-emerald-50 text-emerald-600' :
+                                              report.status === 'JARAYONDA' ? 'bg-amber-50 text-amber-600' :
+                                              'bg-rose-50 text-rose-600'
                                             }`}>
                                               {report.status}
                                             </span>
                                           </div>
-                                          <div className="text-[11px] text-slate-400 mt-1">
-                                            Mas'ul: <strong className="text-slate-200">{accountantName}</strong>
+                                          <div className="text-[11px] text-slate-600 mt-1">
+                                            Mas'ul: <strong className="text-slate-800">{accountantName}</strong>
                                           </div>
                                         </div>
 
                                         {report.submittedAt && (
-                                          <div className="text-right text-[10px] text-slate-400">
-                                            <div className="font-bold text-emerald-400">Topshirildi</div>
+                                          <div className="text-right text-[10px] text-slate-600">
+                                            <div className="font-bold text-emerald-600">Topshirildi</div>
                                             <div>{report.submittedAt}</div>
                                           </div>
                                         )}
@@ -686,9 +731,9 @@ export const ReportsView: React.FC = () => {
 
                                       {/* Proof preview badge if present */}
                                       {report.proofAttachment && (
-                                        <div className="p-2 bg-emerald-900/30 border border-emerald-700 rounded-lg flex items-center justify-between text-[11px]">
-                                          <div className="flex items-center gap-1.5 text-emerald-300 font-medium truncate">
-                                            <Paperclip className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                        <div className="p-2 bg-emerald-50 border border-emerald-700 rounded-lg flex items-center justify-between text-[11px]">
+                                          <div className="flex items-center gap-1.5 text-emerald-700 font-medium truncate">
+                                            <Paperclip className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                             <span className="truncate">{report.proofAttachment.name}</span>
                                           </div>
                                           <button
@@ -698,7 +743,7 @@ export const ReportsView: React.FC = () => {
                                               title: `${client.name} — ${report.reportType} hisoboti isboti`,
                                               clientName: client.name,
                                             })}
-                                            className="px-2 py-0.5 bg-slate-700 border border-emerald-600 text-emerald-300 rounded font-bold hover:bg-slate-600 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                                            className="px-2 py-0.5 bg-slate-100 border border-emerald-600 text-emerald-700 rounded font-bold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                                           >
                                             <Eye className="w-3 h-3" /> Ko'rish
                                           </button>
@@ -706,23 +751,29 @@ export const ReportsView: React.FC = () => {
                                       )}
 
                                       {/* Action buttons */}
-                                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-600/60">
+                                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-300/60">
                                         {report.status !== 'TOPSHIRILDI' ? (
                                           <button
                                             type="button"
-                                            onClick={() => setReportForProof(report)}
-                                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1"
+                                            onClick={() => canSubmit && updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
+                                            disabled={!canSubmit}
+                                            className={`px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 shadow-xs ${
+                                              canSubmit
+                                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                                            }`}
+                                            title={canSubmit ? undefined : 'Avval kassir to\'lovni kiritishi kerak'}
                                           >
-                                            <FileCheck className="w-3.5 h-3.5" /> Isbot yuklash va Topshirildi ✓
+                                            <FileCheck className="w-3.5 h-3.5" /> Topshirildi ✓
                                           </button>
                                         ) : (
                                           <button
                                             type="button"
-                                            onClick={() => setReportForProof(report)}
+                                            onClick={() => updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
                                             className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs cursor-pointer flex items-center gap-1"
-                                            title="Isbot faylini yangilash"
+                                            title="Holatni yangilash"
                                           >
-                                            <FileCheck className="w-3 h-3" /> Isbotni yangilash
+                                            <FileCheck className="w-3 h-3" /> Qayta topshirish
                                           </button>
                                         )}
 
@@ -762,76 +813,76 @@ export const ReportsView: React.FC = () => {
           </div>
 
           {/* Table Footer */}
-          <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-            <span>Jami: <strong>{filteredClientGroups.length} ta mijoz</strong> ({totalReportsCount} ta hisobot shakli)</span>
-            <span className="text-emerald-700 font-bold flex items-center gap-1">
-              <ShieldCheck className="w-4 h-4" /> Barcha hisobotlar PDF/JPG isbot bilan himoyalangan
+          <div className="p-3.5 bg-white border-t border-slate-200 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+            <span>Jami: <strong className="text-slate-900">{filteredClientGroups.length} ta mijoz</strong> ({totalReportsCount} ta hisobot shakli)</span>
+            <span className="text-emerald-600 font-bold flex items-center gap-1">
+              <ShieldCheck className="w-4 h-4" /> Hisobot holatini bir klikda yangilang
             </span>
           </div>
         </div>
       ) : (
         /* FLAT VIEW (TRADITIONAL ALL ROWS TABLE) */
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-700">
+              <thead className="bg-white text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">Mijoz & STIR</th>
                   <th className="p-3.5">Hisobot Shakli</th>
                   <th className="p-3.5">Holati</th>
                   <th className="p-3.5">Mas'ul Xodim</th>
-                  <th className="p-3.5">Topshirilgan Vaqt & Isbot</th>
-                  <th className="p-3.5 text-right">Harakatlar (Isbotli)</th>
+                  <th className="p-3.5">Topshirilgan Vaqt</th>
+                  <th className="p-3.5 text-right">Harakatlar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-slate-200">
                 {filteredFlatReports.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                    <td colSpan={6} className="p-8 text-center text-slate-600">
                       Hisobotlar topilmadi.
                     </td>
                   </tr>
                 ) : (
                   filteredFlatReports.map((report) => (
-                    <tr key={report.id} className="hover:bg-slate-700/50 transition-colors">
+                    <tr key={report.id} className="hover:bg-slate-100/50 transition-colors">
                       <td className="p-3.5">
                         <div
                           onClick={() => openClientCard(report.clientId)}
-                          className="font-extrabold text-white hover:text-emerald-400 cursor-pointer text-sm"
+                          className="font-extrabold text-slate-900 hover:text-emerald-700 cursor-pointer text-sm"
                         >
                           {report.clientName}
                         </div>
-                        <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        <div className="text-[11px] font-mono text-slate-600 mt-0.5">
                           STIR: {report.stir}
                         </div>
                       </td>
 
                       <td className="p-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-slate-600 border border-slate-500 font-bold text-white font-mono">
+                        <span className="px-2.5 py-1 rounded-md bg-slate-600 border border-slate-500 font-bold text-slate-900 font-mono">
                           {report.reportType}
                         </span>
                       </td>
 
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                          report.status === 'TOPSHIRILDI' ? 'bg-emerald-900/50 text-emerald-400' :
-                          report.status === 'JARAYONDA' ? 'bg-amber-900/50 text-amber-400' :
-                          report.status === 'TALAB_QILINMAYDI' ? 'bg-slate-600 text-slate-300' :
-                          'bg-rose-900/50 text-rose-400 animate-pulse'
+                          report.status === 'TOPSHIRILDI' ? 'bg-emerald-50 text-emerald-600' :
+                          report.status === 'JARAYONDA' ? 'bg-amber-50 text-amber-600' :
+                          report.status === 'TALAB_QILINMAYDI' ? 'bg-slate-600 text-slate-700' :
+                          'bg-rose-50 text-rose-600 animate-pulse'
                         }`}>
                           {report.status}
                         </span>
                       </td>
 
-                      <td className="p-3.5 text-slate-300 font-medium">
+                      <td className="p-3.5 text-slate-700 font-medium">
                         {employees.find(e => e.id === report.accountantId)?.name || 'Tayinlanmagan'}
                       </td>
 
-                      <td className="p-3.5 text-slate-400">
+                      <td className="p-3.5 text-slate-600">
                         {report.submittedAt ? (
                           <div className="space-y-1">
-                            <div className="font-semibold text-slate-200">{report.submittedAt}</div>
-                            <div className="text-[10px] text-slate-400">{report.submittedBy}</div>
+                            <div className="font-semibold text-slate-800">{report.submittedAt}</div>
+                            <div className="text-[10px] text-slate-600">{report.submittedBy}</div>
                             {report.proofAttachment && (
                               <button
                                 type="button"
@@ -840,14 +891,14 @@ export const ReportsView: React.FC = () => {
                                   title: `${report.clientName} — ${report.reportType} hisoboti isboti`,
                                   clientName: report.clientName,
                                 })}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-900/50 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-700 font-bold text-[10px] cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-700 font-bold text-[10px] cursor-pointer"
                               >
                                 <Eye className="w-3 h-3" /> Isbot ({report.proofAttachment.type.includes('pdf') ? 'PDF' : 'JPG'})
                               </button>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">Topshirilmagan</span>
+                          <span className="text-slate-600 italic">Topshirilmagan</span>
                         )}
                       </td>
 
@@ -856,18 +907,23 @@ export const ReportsView: React.FC = () => {
                           {report.status !== 'TOPSHIRILDI' ? (
                             <button
                               type="button"
-                              onClick={() => setReportForProof(report)}
-                              className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1"
-                              title="Isbot (JPG/PDF) yuklab topshirildi deb belgilash"
+                              onClick={() => canMarkReportSubmitted(report.clientId) && updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
+                              disabled={!canMarkReportSubmitted(report.clientId)}
+                              className={`px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 shadow-xs ${
+                                canMarkReportSubmitted(report.clientId)
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                                  : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                              }`}
+                              title={canMarkReportSubmitted(report.clientId) ? 'Topshirildi deb belgilash' : 'Avval kassir to\'lovni kiritishi kerak'}
                             >
                               <FileCheck className="w-3.5 h-3.5" /> Topshirildi ✓
                             </button>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setReportForProof(report)}
+                              onClick={() => updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
                               className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs cursor-pointer flex items-center gap-1"
-                              title="Isbot hujjatini almashtirish"
+                              title="Holatni yangilash"
                             >
                               <FileCheck className="w-3 h-3" /> Isbot
                             </button>
@@ -901,39 +957,39 @@ export const ReportsView: React.FC = () => {
             </table>
           </div>
 
-          <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-between">
-            <span>Jami ko'rsatilmoqda: <strong>{filteredFlatReports.length} ta hisobot</strong></span>
-            <span className="text-emerald-700 font-bold">Har bir hisobot alohida qatorda &bull; Isbot bilan tasdiqlanadi</span>
+          <div className="p-3.5 bg-white border-t border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+            <span>Jami ko'rsatilmoqda: <strong className="text-slate-900">{filteredFlatReports.length} ta hisobot</strong></span>
+            <span className="text-emerald-600 font-bold">Har bir hisobot alohida qatorda</span>
           </div>
         </div>
       )}
 
       {/* CLIENT REPORTS DETAIL MODAL */}
       {selectedModalClientGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-5 py-4 bg-white text-slate-900 flex items-center justify-between">
               <div>
-                <h3 className="font-extrabold text-sm text-white">
+                <h3 className="font-extrabold text-sm text-slate-900">
                   {selectedModalClientGroup.client.name}
                 </h3>
-                <p className="text-[11px] text-slate-300 mt-0.5">
+                <p className="text-[11px] text-slate-700 mt-0.5">
                   STIR: {selectedModalClientGroup.client.stir} &bull; Mas'ul buxgalter: {selectedModalClientGroup.accountantName}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedClientModalId(null)}
-                className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-bold transition-colors cursor-pointer"
               >
                 Yopish ✕
               </button>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 text-xs">
-              <div className="flex items-center justify-between bg-emerald-900/30 p-3 rounded-xl border border-emerald-700">
+              <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-xl border border-emerald-700">
                 <div>
-                  <div className="font-bold text-emerald-300">Topshirish holati:</div>
-                  <div className="text-[11px] text-emerald-200">
+                  <div className="font-bold text-emerald-700">Topshirish holati:</div>
+                  <div className="text-[11px] text-emerald-800">
                     {selectedModalClientGroup.submittedCount} / {selectedModalClientGroup.totalCount} ta hisobot topshirildi ({selectedModalClientGroup.completionPercentage}%)
                   </div>
                 </div>
@@ -950,12 +1006,17 @@ export const ReportsView: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      setClientForBulkProof({
-                        client: selectedModalClientGroup.client,
-                        activeReports: selectedModalClientGroup.activeReports,
-                      });
+                      if (canMarkReportSubmitted(selectedModalClientGroup.client.id)) {
+                        updateAllClientTaxReports(selectedModalClientGroup.client.id, 'TOPSHIRILDI');
+                      }
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1"
+                    disabled={!canMarkReportSubmitted(selectedModalClientGroup.client.id)}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                      canMarkReportSubmitted(selectedModalClientGroup.client.id)
+                        ? 'bg-black hover:bg-neutral-800 text-white cursor-pointer shadow-xs'
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    }`}
+                    title={canMarkReportSubmitted(selectedModalClientGroup.client.id) ? undefined : 'Avval kassir to\'lovni kiritishi kerak'}
                   >
                     <CheckCheck className="w-3.5 h-3.5" /> Barchasini Topshirildi qilish ✓
                   </button>
@@ -970,12 +1031,12 @@ export const ReportsView: React.FC = () => {
                 {selectedModalClientGroup.activeReports.map((report, idx) => (
                   <div 
                     key={report.id}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+                    className="p-3.5 rounded-xl border border-slate-300 bg-white/60 flex items-center justify-between gap-3"
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-500">{idx + 1}.</span>
-                        <span className="font-extrabold text-slate-900 text-xs font-mono bg-white px-2 py-0.5 rounded border">
+                        <span className="font-bold text-slate-600">{idx + 1}.</span>
+                        <span className="font-extrabold text-slate-900 text-xs font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                           {report.reportType}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1009,14 +1070,20 @@ export const ReportsView: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       {report.status !== 'TOPSHIRILDI' ? (
                         <button
-                          onClick={() => setReportForProof(report)}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1"
+                          onClick={() => canMarkReportSubmitted(selectedModalClientGroup.client.id) && updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
+                          disabled={!canMarkReportSubmitted(selectedModalClientGroup.client.id)}
+                          className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                            canMarkReportSubmitted(selectedModalClientGroup.client.id)
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                          }`}
+                          title={canMarkReportSubmitted(selectedModalClientGroup.client.id) ? undefined : 'Avval kassir to\'lovni kiritishi kerak'}
                         >
                           <FileCheck className="w-3.5 h-3.5" /> Topshirildi ✓
                         </button>
                       ) : (
                         <button
-                          onClick={() => setReportForProof(report)}
+                          onClick={() => updateTaxReportStatus(report.id, 'TOPSHIRILDI')}
                           className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs cursor-pointer flex items-center gap-1"
                         >
                           <FileCheck className="w-3 h-3" /> Isbot
@@ -1047,48 +1114,6 @@ export const ReportsView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* MANDATORY PROOF UPLOAD MODAL FOR INDIVIDUAL TAX REPORT */}
-      {reportForProof && (
-        <ProofUploadModal
-          isOpen={!!reportForProof}
-          title="Soliq Hisoboti Topshirilganligini Tasdiqlash"
-          subtitle="Qat'iy qoida: Soliq portali kvitansiyasi yoki skrinshoti (JPG, PNG yoki PDF) majburiy"
-          targetName={`${reportForProof.reportType} hisoboti (${currentPeriod.name})`}
-          targetLabel="Soliq Hisoboti Shakli:"
-          clientInfo={{
-            name: reportForProof.clientName,
-            stir: reportForProof.stir,
-          }}
-          actionLabel="Isbotni yuklash va Topshirildi deb tasdiqlash"
-          onClose={() => setReportForProof(null)}
-          onConfirm={(proof, notes) => {
-            updateTaxReportStatus(reportForProof.id, 'TOPSHIRILDI', notes, proof);
-            setReportForProof(null);
-          }}
-        />
-      )}
-
-      {/* MANDATORY PROOF UPLOAD MODAL FOR BULK CLIENT TAX REPORTS */}
-      {clientForBulkProof && (
-        <ProofUploadModal
-          isOpen={!!clientForBulkProof}
-          title="Barcha Soliq Hisobotlari Topshirilganligini Tasdiqlash"
-          subtitle={`Qat'iy qoida: ${clientForBulkProof.activeReports.length} ta hisobot uchun soliq portali kvitansiyasi (JPG, PNG yoki PDF) majburiy`}
-          targetName={`${clientForBulkProof.activeReports.map(r => r.reportType).join(', ')} (${currentPeriod.name})`}
-          targetLabel="Barcha Hisobot Shakllari:"
-          clientInfo={{
-            name: clientForBulkProof.client.name,
-            stir: clientForBulkProof.client.stir,
-          }}
-          actionLabel="Isbot bilan Barchasini Topshirildi deb tasdiqlash"
-          onClose={() => setClientForBulkProof(null)}
-          onConfirm={(proof, notes) => {
-            updateAllClientTaxReports(clientForBulkProof.client.id, 'TOPSHIRILDI', proof, notes);
-            setClientForBulkProof(null);
-          }}
-        />
       )}
 
       {/* PROOF VIEWER MODAL */}

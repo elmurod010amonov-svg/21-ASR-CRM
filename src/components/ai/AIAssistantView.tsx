@@ -115,9 +115,11 @@ export const AIAssistantView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: query,
-          agentRole: selectedAgent,
-          crmContext,
+          prompt: query,
+          agentRole: agents.find(a => a.id === selectedAgent)?.title || selectedAgent,
+          userRole: currentUser.role,
+          userName: currentUser.name,
+          systemContext: JSON.stringify(crmContext, null, 2),
         })
       });
 
@@ -126,7 +128,7 @@ export const AIAssistantView: React.FC = () => {
       const aiMsg: AIMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: data.reply || "Javob olishda texnik xatolik yuz berdi.",
+        text: data.text || data.error || "Javob olishda texnik xatolik yuz berdi.",
         timestamp: new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }),
         agentRole: selectedAgent,
       };
@@ -193,14 +195,14 @@ export const AIAssistantView: React.FC = () => {
     <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden animate-in fade-in duration-200">
       {/* Left Sidebar: 8 AI Agent Roles */}
       <div className="w-full md:w-80 border-r border-slate-200 bg-slate-50/50 flex flex-col">
-        <div className="p-4 border-b border-slate-200 bg-slate-900 text-white">
+        <div className="p-4 border-b border-slate-200 bg-white text-slate-900">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+            <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-600">
               <Bot className="w-5 h-5" />
             </span>
             <div>
-              <h2 className="text-xs font-black uppercase tracking-wider text-emerald-400">21-ASR AI Markazi</h2>
-              <div className="text-[11px] text-slate-300 font-medium">8 ta Ixtisoslashgan Agent</div>
+              <h2 className="text-xs font-black uppercase tracking-wider text-emerald-600">21-ASR AI Markazi</h2>
+              <div className="text-[11px] text-slate-700 font-medium">8 ta Ixtisoslashgan Agent</div>
             </div>
           </div>
         </div>
@@ -232,7 +234,7 @@ export const AIAssistantView: React.FC = () => {
       </div>
 
       {/* Right Area: Conversation history & input */}
-      <div className="flex-1 flex flex-col bg-slate-50/30">
+      <div className="flex-1 min-w-0 flex flex-col bg-slate-50/30">
         {/* Active Agent Header */}
         <div className="p-3.5 px-5 bg-white border-b border-slate-200 flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-3">
@@ -256,8 +258,8 @@ export const AIAssistantView: React.FC = () => {
         </div>
 
         {/* Quick Suggestion Chips */}
-        <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap flex items-center gap-1">
+        <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center gap-2 overflow-x-auto scrollbar-none min-w-0">
+          <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap flex items-center gap-1">
             <Zap className="w-3 h-3 text-amber-500" /> Tezkor:
           </span>
           {quickPrompts.map((prompt, idx) => (
@@ -286,10 +288,10 @@ export const AIAssistantView: React.FC = () => {
                   {isUser ? currentUser.name[0] : <Bot className="w-4 h-4" />}
                 </div>
 
-                <div className="space-y-2">
-                  <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
-                    isUser 
-                      ? 'bg-slate-900 text-white rounded-tr-xs' 
+                <div className="space-y-2 min-w-0">
+                  <div className={`p-4 rounded-2xl text-xs leading-relaxed break-words ${
+                    isUser
+                      ? 'bg-slate-100 text-slate-900 rounded-tr-xs border border-slate-200'
                       : 'bg-white text-slate-800 rounded-tl-xs border border-slate-200 shadow-2xs whitespace-pre-wrap'
                   }`}>
                     {msg.text}
@@ -314,7 +316,7 @@ export const AIAssistantView: React.FC = () => {
                     </div>
                   )}
 
-                  <div className={`text-[10px] text-slate-400 px-1 ${isUser ? 'text-right' : ''}`}>
+                  <div className={`text-[10px] text-slate-600 px-1 ${isUser ? 'text-right' : ''}`}>
                     {msg.timestamp}
                   </div>
                 </div>

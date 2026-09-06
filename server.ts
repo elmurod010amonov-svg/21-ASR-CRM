@@ -2,7 +2,9 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import cors from 'cors';
 import dotenv from 'dotenv';
-dotenv.config();
+// Vite konvensiyasiga mos: .env (umumiy) + .env.local (shaxsiy, .gitignore'da bo'lishi kerak, ustunlik beradi)
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local', override: true });
 
 // MONGODB va Port uchun to'g'ridan-to'g'ri zaxira qiymatlar (fallback)
 process.env.MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
@@ -55,6 +57,27 @@ function getGeminiClient(): GoogleGenAI {
     });
   }
   return aiClient;
+}
+
+// Gemini vaqti-vaqti bilan 503/UNAVAILABLE ("high demand") qaytaradi — bunday holatda
+// kichik kutish (backoff) bilan bir necha marta qayta urinib ko'ramiz.
+async function generateContentWithRetry(
+  ai: GoogleGenAI,
+  params: Parameters<GoogleGenAI['models']['generateContent']>[0],
+  maxRetries = 3
+): ReturnType<GoogleGenAI['models']['generateContent']> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const isOverloaded = message.includes('503') || message.includes('UNAVAILABLE') || message.includes('high demand');
+      if (!isOverloaded || attempt >= maxRetries) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt));
+    }
+  }
 }
 
 // Health check endpoint
@@ -191,18 +214,25 @@ Tizim ma'lumotlari tahlil qilindi:
     const baseSystemPrompt = `Siz O'zbekistondagi buxgalteriya va soliq konsaltingi bo'yicha ixtisoslashgan "21-ASR CRM" tizimining professional AI Maslahatchisisiz.
 Siz o'zbek tilida (lotin yozuvida) juda aniq, do'stona, professional va buxgalteriya terminologiyasini (STIR, QQS, Aylanma soliq, JSHDS, INPS, Oborotka, Kameral, Faktura, 1C) to'liq tushungan holda javob berasiz.
 
+Javob berish qoidalari (MAJBURIY):
+- Avval savolni diqqat bilan tahlil qiling va aynan nima so'ralganini aniqlang; faqat o'sha savolga javob bering.
+- To'g'ridan-to'g'ri javob bilan boshlang. "Assalomu alaykum", "Ajoyib savol" kabi kirish gaplarisiz, zarurat bo'lmasa xayrlashuv yoki qo'shimcha taklif bilan tugatmasdan.
+- Mavzudan chetga chiqmang, umumiy va mavhum ("odatda", "ehtimol", "tavsiya etiladi" kabi) gaplar bilan chalg'itmang — CRM konteksti va savolga tayangan holda aniq, dalilga asoslangan javob bering.
+- Agar savolga javob berish uchun aniq ma'lumot (raqam, sana, mijoz nomi) CRM kontekstida bo'lsa, uni aniq keltiring; taxmin qilmang. Ma'lumot yetarli bo'lmasa, shuni ochiq ayting va aynan qaysi ma'lumot kerakligini so'rang — umumiy gap bilan o'ralashtirmang.
+- Javobni kerak bo'lgan uzunlikda bering: qisqa savolga qisqa va lo'nda, murakkab tahlil talab qiladigan savolga esa tuzilgan (band-band) va aniq javob bering. Ortiqcha so'z, takror yoki "yopiq" umumiy xulosalardan saqlaning.
+
 Joriy foydalanuvchi: ${userName || 'Xodim'} (Roli: ${userRole || 'BUXGALTER'})
 Tanlangan ixtisoslashgan agent: ${agentRole || 'Umumiy Maslahatchi'}
 
 CRM Baza konteksti:
 ${systemContext || 'CRM konteksti yuklanmagan'}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithRetry(ai, {
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         systemInstruction: baseSystemPrompt,
-        temperature: 0.4,
+        temperature: 0.2,
       },
     });
 
@@ -237,8 +267,8 @@ So'rov: ${query || 'Bugungi muhim muammolar va kameral xabarlar'}
 Chat yozishmalari:
 ${JSON.stringify(chatLogs || [])}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithRetry(ai, {
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         systemInstruction: "Siz 21-ASR CRM Super Admini uchun chat monitoringi va xavfsizlik tahlilchisisiz.",

@@ -96,7 +96,7 @@ export const GlobalSearchModal: React.FC = () => {
     results.employees.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-white/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
         className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
@@ -115,7 +115,7 @@ export const GlobalSearchModal: React.FC = () => {
           {query && (
             <button 
               onClick={() => setQuery('')}
-              className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+              className="p-1 rounded-md text-slate-600 hover:text-slate-600 hover:bg-slate-200/50"
             >
               <X className="w-4 h-4" />
             </button>
@@ -133,21 +133,21 @@ export const GlobalSearchModal: React.FC = () => {
                 <Search className="w-6 h-6" />
               </div>
               <p className="text-sm font-medium text-slate-700">Tezkor 360° Global Qidiruv</p>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
                 Masalan: <span className="font-semibold text-emerald-700">"304918273"</span> (STIR), <span className="font-semibold text-emerald-700">"DILSHOD"</span>, <span className="font-semibold text-emerald-700">"Kameral"</span>, yoki <span className="font-semibold text-emerald-700">"Aliyev"</span>
               </p>
             </div>
           ) : totalResultsCount === 0 ? (
             <div className="py-10 text-center text-slate-500">
               <p className="text-sm font-medium text-slate-700">"{query}" bo'yicha hech narsa topilmadi</p>
-              <p className="text-xs text-slate-400 mt-1">STIR raqami yoki korxona nomini qayta tekshirib ko'ring.</p>
+              <p className="text-xs text-slate-600 mt-1">STIR raqami yoki korxona nomini qayta tekshirib ko'ring.</p>
             </div>
           ) : (
             <>
               {/* Clients section */}
               {results.clients.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-emerald-600" />
                     Mijozlar ({results.clients.length})
                   </div>
@@ -189,7 +189,7 @@ export const GlobalSearchModal: React.FC = () => {
               {/* Tax Reports section */}
               {results.reports.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-blue-600" />
                     Hisobotlar ({results.reports.length})
                   </div>
@@ -224,7 +224,7 @@ export const GlobalSearchModal: React.FC = () => {
               {/* Letters section */}
               {results.letters.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-purple-600" />
                     Soliq Xatlari ({results.letters.length})
                   </div>
@@ -259,7 +259,7 @@ export const GlobalSearchModal: React.FC = () => {
               {/* Kameral section */}
               {results.kameral.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                     Kameral Tekshiruvlar ({results.kameral.length})
                   </div>
@@ -289,7 +289,7 @@ export const GlobalSearchModal: React.FC = () => {
               {/* Tasks */}
               {results.tasks.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
                     Topshiriqlar ({results.tasks.length})
                   </div>
@@ -319,7 +319,7 @@ export const GlobalSearchModal: React.FC = () => {
               {/* Employees */}
               {results.employees.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 px-2 mb-2 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-teal-600" />
                     Xodimlar ({results.employees.length})
                   </div>
@@ -348,7 +348,7 @@ export const GlobalSearchModal: React.FC = () => {
         </div>
 
         {/* Search Footer */}
-        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-400">
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-600">
           <span>21-ASR Professional Buxgalteriya CRM</span>
           <span>Bosish: <kbd className="font-mono bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">Enter</kbd> ochish, <kbd className="font-mono bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">Esc</kbd> yopish</span>
         </div>

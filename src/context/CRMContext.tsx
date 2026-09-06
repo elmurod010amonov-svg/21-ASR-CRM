@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Employee,
   Client,
@@ -6,6 +6,9 @@ import {
   TaxReport,
   Accounting1CRecord,
   PaymentRecord,
+  ReceiptRecord,
+  InvoiceRecord,
+  InvoiceDirection,
   LetterRecord,
   KameralAudit,
   IssueRecord,
@@ -47,6 +50,16 @@ import {
   INITIAL_NOTIFICATIONS
 } from '../data/initialData';
 import { scanDatabase, autoFixDatabase } from '../utils/dbScanner';
+import { idbGetFile, idbSetFile, idbDeleteFile } from '../utils/idbFileStore';
+import { isSubjectTo1C } from '../utils/oborotka';
+import {
+  base64ToArrayBuffer,
+  buildCombinedDebtActDocx,
+  buildDefaultDebtActDocx,
+  DebtActValues,
+  downloadBlob,
+  fillDocxTemplate,
+} from '../utils/debtActDocx';
 
 interface CRMContextType {
   // Health state
@@ -65,6 +78,8 @@ interface CRMContextType {
   taxReports: TaxReport[];
   accounting1C: Accounting1CRecord[];
   payments: PaymentRecord[];
+  receipts: ReceiptRecord[];
+  invoices: InvoiceRecord[];
   letters: LetterRecord[];
   kameral: KameralAudit[];
   issues: IssueRecord[];
@@ -78,18 +93,22 @@ interface CRMContextType {
   activeTab: string;
   selectedClientIdForModal: string | null;
   globalSearchOpen: boolean;
-  debtActTemplate: string;
+  pendingChatRoomId: string | null;
+  debtActTemplateFile: { base64: string; fileName: string } | null;
   
   // Navigation & UI controls
   setActiveTab: (tab: string) => void;
-  switchUserRole: (role: UserRole, employeeId?: string) => void;
   openClientCard: (clientId: string) => void;
   closeClientCard: () => void;
   setGlobalSearchOpen: (open: boolean) => void;
+  setPendingChatRoomId: (roomId: string | null) => void;
   setCurrentPeriod: (period: ReportPeriod) => void;
   logoutUser: () => void;
-  updateDebtActTemplate: (template: string) => void;
-  generateDebtAct: (clientId: string) => void;
+  /** null yuborilsa — o'chiriladi va tizim o'zining standart AKT shabloniga qaytadi */
+  updateDebtActTemplateFile: (file: { base64: string; fileName: string } | null) => void;
+  generateDebtAct: (clientId: string) => Promise<void>;
+  /** Qarzdorligi bor va hisobot topshirmagan barcha (Yuridik + YaTT) mijozlar uchun bitta umumiy Akt */
+  generateCombinedDebtAct: () => Promise<void>;
   
   // Client Operations
   addClient: (clientData: Omit<Client, 'id'>) => Client;
@@ -106,6 +125,8 @@ interface CRMContextType {
   // Tax Report Operations
   updateTaxReportStatus: (reportId: string, status: ReportStatus, notes?: string, proof?: ProofAttachment) => void;
   updateAllClientTaxReports: (clientId: string, status: ReportStatus, proof?: ProofAttachment, notes?: string) => void;
+  /** Mijoz uchun kassir to'lov kiritganmi (hisobotni "Topshirildi" deb belgilash shu shartga bog'liq) */
+  canMarkReportSubmitted: (clientId: string) => boolean;
   createTaxReport: (report: Omit<TaxReport, 'id'>) => void;
   addTaxReport: (report: Omit<TaxReport, 'id'>) => void;
   setClientReportTypes: (clientId: string, reportTypes: ReportType[]) => void;
@@ -113,23 +134,37 @@ interface CRMContextType {
   
   // 1C & Invoices
   updateAccounting1C: (id: string, updates: Partial<Accounting1CRecord>) => void;
-  toggle1COborotka: (id: string) => void;
+  /** untilDate berilsa — KIRITILGAN + shu sanagacha; berilmasa — bekor (KIRITILMAGAN) */
+  toggle1COborotka: (id: string, untilDate?: string) => void;
   
   // Payments
   recordPayment: (clientId: string, amount: number, notes?: string) => void;
   updatePayment: (id: string, updates: Partial<PaymentRecord>) => void;
+
+  // Receipts (Cheklar)
+  addReceipt: (clientId: string, cashAmount: number, terminalAmount: number, date?: string, notes?: string) => void;
+  updateReceipt: (id: string, updates: Partial<Pick<ReceiptRecord, 'cashAmount' | 'terminalAmount' | 'date' | 'notes'>>) => void;
+  deleteReceipt: (id: string) => void;
+
+  // Invoices (Fakturalar)
+  addInvoice: (clientId: string, direction: InvoiceDirection, date: string, notes?: string) => void;
+  deleteInvoice: (id: string) => void;
   
   // Letters
   markLetterAsRead: (letterId: string) => void;
-  updateLetterStatus: (letterId: string, status: any, replyDate?: string, notes?: string) => void;
+  updateLetterStatus: (letterId: string, status: any, replyDate?: string, notes?: string, proof?: ProofAttachment) => void;
   createLetter: (letterData: Omit<LetterRecord, 'id'>) => void;
   addLetter: (letterData: Omit<LetterRecord, 'id'>) => void;
   deleteLetter: (id: string) => void;
-  
+
+  // Reminders (Eslatmalar)
+  addReminder: (reminderData: Omit<AutomaticReminder, 'id'>) => void;
+  deleteReminder: (id: string) => void;
+
   // Kameral
   createKameral: (auditData: Omit<KameralAudit, 'id'>) => void;
   addKameral: (auditData: Omit<KameralAudit, 'id'>) => void;
-  updateKameralStatus: (id: string, status: any, notes?: string) => void;
+  updateKameralStatus: (id: string, status: any, notes?: string, proof?: ProofAttachment) => void;
   
   // Issues & Deficiencies
   createIssue: (issueData: Omit<IssueRecord, 'id' | 'createdAt'>) => void;
@@ -172,7 +207,7 @@ interface CRMContextType {
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
-const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V2';
+const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V3';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isScannerModalOpen, setIsScannerModalOpen] = useState<boolean>(false);
@@ -231,7 +266,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
   }, [userCredentials]);
 
-  const [currentUser, setCurrentUser] = useState<Employee>(() => ({
+  const guestUser: Employee = {
     id: 'guest',
     name: 'Tashrifchi',
     role: 'BUXGALTER',
@@ -248,7 +283,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     issuesCount: 0,
     lettersCount: 0,
     accounting1CCount: 0,
-  }));
+    rating: 0,
+    giftsReceived: 0,
+  };
+
+  // Sahifa yangilanganda (F5) sessiya saqlanib qolishi uchun — oxirgi kirgan xodim ID'si bo'yicha tiklanadi
+  const [currentUser, setCurrentUser] = useState<Employee>(() => {
+    try {
+      const savedUserId = localStorage.getItem('21ASR_CURRENT_USER_ID');
+      if (savedUserId) {
+        const found = employees.find(e => e.id === savedUserId);
+        if (found) return found;
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+    return guestUser;
+  });
+
+  // Joriy foydalanuvchi ID'sini saqlab boramiz — sahifa yangilanganda shu orqali sessiya tiklanadi
+  useEffect(() => {
+    try {
+      localStorage.setItem('21ASR_CURRENT_USER_ID', currentUser.id);
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [currentUser.id]);
 
   const [clients, setClients] = useState<Client[]>(() => 
     loadData('clients', INITIAL_CLIENTS)
@@ -270,8 +330,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadData('accounting1C', INITIAL_ACCOUNTING_1C)
   );
 
-  const [payments, setPayments] = useState<PaymentRecord[]>(() => 
+  const [payments, setPayments] = useState<PaymentRecord[]>(() =>
     loadData('payments', INITIAL_PAYMENTS)
+  );
+
+  const [receipts, setReceipts] = useState<ReceiptRecord[]>(() =>
+    loadData('receipts', [])
+  );
+
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>(() =>
+    loadData('invoices', [])
   );
 
   const [letters, setLetters] = useState<LetterRecord[]>(() => 
@@ -316,36 +384,83 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
   const [selectedClientIdForModal, setSelectedClientIdForModal] = useState<string | null>(null);
+  const [pendingChatRoomId, setPendingChatRoomId] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState<boolean>(false);
-  const [debtActTemplate, setDebtActTemplate] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('21ASR_DEBT_ACT_TEMPLATE');
-      return saved || '';
-    } catch {
-      return '';
-    }
-  });
+  // Word shablon fayli (base64) — localStorage kvotasidan katta bo'lishi mumkin, shuning uchun IndexedDB'da saqlanadi.
+  // Boshlang'ich holat null; haqiqiy qiymat pastdagi hydration effekti orqali asinxron yuklanadi.
+  const [debtActTemplateFile, setDebtActTemplateFile] = useState<{ base64: string; fileName: string } | null>(null);
+  const debtActTemplateFileHydrated = useRef(false);
 
-  // One-time cleanup: drop legacy real-mode test seed (V1) so real workspace stays empty
+  // Drop old seeded demo caches so the workspace starts empty
   useEffect(() => {
     try {
-      const legacyPrefix = '21ASR_CRM_REAL_V1';
-      [
-        'clients', 'taxReports', 'accounting1C', 'payments', 'letters',
-        'kameral', 'issues', 'tasks', 'chatMessages', 'auditLogs', 'notifications',
-      ].forEach((key) => localStorage.removeItem(`${legacyPrefix}_${key}`));
+      ['21ASR_CRM_REAL_V1', '21ASR_CRM_REAL_V2'].forEach((legacyPrefix) => {
+        [
+          'clients', 'taxReports', 'accounting1C', 'payments', 'letters',
+          'kameral', 'issues', 'tasks', 'chatMessages', 'auditLogs', 'notifications',
+          'employees', 'periods', 'reminders', 'chatRooms', 'gifts',
+        ].forEach((key) => localStorage.removeItem(`${legacyPrefix}_${key}`));
+      });
     } catch {
       // ignore storage errors
     }
   }, []);
 
 
-  // Sync debt act template to localStorage
+  // Akt Word shablon faylini IndexedDB'dan yuklash (eski localStorage'dagi nusxadan bir martalik migratsiya bilan)
   useEffect(() => {
-    try {
-      localStorage.setItem('21ASR_DEBT_ACT_TEMPLATE', debtActTemplate);
-    } catch (e) {}
-  }, [debtActTemplate]);
+    let cancelled = false;
+    (async () => {
+      try {
+        let file = await idbGetFile<{ base64: string; fileName: string }>('debtActTemplateFile');
+        if (!file) {
+          const legacy = localStorage.getItem('21ASR_DEBT_ACT_TEMPLATE_FILE');
+          if (legacy) {
+            try {
+              const parsed = JSON.parse(legacy);
+              if (parsed) {
+                file = parsed;
+                await idbSetFile('debtActTemplateFile', parsed);
+              }
+            } catch {
+              // legacy yozuv buzilgan — e'tiborsiz qoldiramiz
+            }
+            localStorage.removeItem('21ASR_DEBT_ACT_TEMPLATE_FILE');
+          }
+        }
+        if (!cancelled && file) {
+          setDebtActTemplateFile(file);
+        }
+      } catch (e) {
+        console.error('Akt shabloni fayli IndexedDB dan o\'qib bo\'lmadi:', e);
+      } finally {
+        if (!cancelled) debtActTemplateFileHydrated.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Akt Word shablon faylini IndexedDB'ga saqlash (hydration tugagunicha yozmaymiz — aks holda mavjud faylni null bilan ustidan yozib yuboradi)
+  useEffect(() => {
+    if (!debtActTemplateFileHydrated.current) return;
+    (async () => {
+      try {
+        if (debtActTemplateFile) {
+          await idbSetFile('debtActTemplateFile', debtActTemplateFile);
+        } else {
+          await idbDeleteFile('debtActTemplateFile');
+        }
+      } catch (e) {
+        console.error('Akt shabloni fayli saqlanmadi:', e);
+        addNotification({
+          type: 'SYSTEM',
+          title: 'Xatolik',
+          message: 'Qarzdorlik akti Word shabloni brauzer xotirasiga saqlanmadi. Fayl hajmini kichraytirib qayta yuklang.',
+          linkModule: 'Sozlamalar',
+        });
+      }
+    })();
+  }, [debtActTemplateFile]);
 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_employees`, JSON.stringify(employees));
@@ -370,6 +485,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_payments`, JSON.stringify(payments));
   }, [payments]);
+
+  useEffect(() => {
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_receipts`, JSON.stringify(receipts));
+  }, [receipts]);
+
+  useEffect(() => {
+    localStorage.setItem(`${REAL_STORAGE_PREFIX}_invoices`, JSON.stringify(invoices));
+  }, [invoices]);
 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_letters`, JSON.stringify(letters));
@@ -427,7 +550,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Helper to add notification
   const addNotification = (item: Omit<NotificationItem, 'id' | 'timestamp' | 'read'>) => {
     const newNotif: NotificationItem = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...item,
       timestamp: 'Hozirgina',
       read: false,
@@ -515,26 +638,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const switchUserRole = (role: UserRole, employeeId?: string) => {
-    // Faqat SUPER_ADMIN boshqa rollarga o'tishi mumkin
-    if (currentUser.role !== 'SUPER_ADMIN') {
-      addNotification({
-        type: 'SYSTEM',
-        title: 'Ruxsat yo\'q',
-        message: 'Faqat SUPER_ADMIN boshqa rollarga o\'tishi mumkin.',
-        linkModule: 'Dashboard'
-      });
-      return;
-    }
-
-    let targetEmployee = employees.find(e => employeeId ? e.id === employeeId : e.role === role);
-    if (!targetEmployee) {
-      targetEmployee = employees.find(e => e.role === role) || employees[0];
-    }
-    setCurrentUser(targetEmployee);
-    logAudit('Foydalanuvchi roli almashtirildi', 'UserSession', targetEmployee.id, `${targetEmployee.name} (${role})`);
-  };
-
   const openClientCard = (clientId: string) => {
     setSelectedClientIdForModal(clientId);
   };
@@ -576,25 +679,27 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     setTaxReports(prev => [...newReports, ...prev]);
 
-    // Auto-generate 1C / Didox Record
-    const new1CRecord: Accounting1CRecord = {
-      id: `ac-${Date.now()}`,
-      clientId: newClient.id,
-      clientName: newClient.name,
-      stir: newClient.stir,
-      periodId: currentPeriod.id,
-      oborotkaStatus: 'KIRITILMAGAN',
-      incomingInvoicesCount: 0,
-      incomingInvoicesEntered: 0,
-      incomingStatus: 'KIRITILGAN',
-      outgoingInvoicesCount: 0,
-      outgoingInvoicesEntered: 0,
-      outgoingStatus: 'KIRITILGAN',
-      accountantId: newClient.accountantId,
-      issuesCount: 0,
-      lastUpdated: new Date().toLocaleDateString('uz-UZ'),
-    };
-    setAccounting1C(prev => [new1CRecord, ...prev]);
+    // Auto-generate 1C / Didox Record — faqat oylik to'lovi 1 000 000 so'mdan yuqori mijozlar uchun
+    if (isSubjectTo1C(newClient.monthlyFee)) {
+      const new1CRecord: Accounting1CRecord = {
+        id: `ac-${Date.now()}`,
+        clientId: newClient.id,
+        clientName: newClient.name,
+        stir: newClient.stir,
+        periodId: currentPeriod.id,
+        oborotkaStatus: 'KIRITILMAGAN',
+        incomingInvoicesCount: 0,
+        incomingInvoicesEntered: 0,
+        incomingStatus: 'KIRITILGAN',
+        outgoingInvoicesCount: 0,
+        outgoingInvoicesEntered: 0,
+        outgoingStatus: 'KIRITILGAN',
+        accountantId: newClient.accountantId,
+        issuesCount: 0,
+        lastUpdated: new Date().toLocaleDateString('uz-UZ'),
+      };
+      setAccounting1C(prev => [new1CRecord, ...prev]);
+    }
 
     // Auto-generate Monthly Payment Record
     const newPaymentRecord: PaymentRecord = {
@@ -654,9 +759,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteClient = (id: string) => {
     const target = clients.find(c => c.id === id);
     if (!target) return;
-    const allowedRoles = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER'];
+    const allowedRoles = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI', 'BUXGALTER'];
     if (!allowedRoles.includes(currentUser.role) || currentUser.id === 'guest') {
-      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun faqat SUPER_ADMIN, DIREKTOR yoki BUXGALTER ruxsatiga ega bo\'lish kerak.', linkModule: 'Mijozlar' });
+      addNotification({ type: 'SYSTEM', title: 'Ruxsat yo\'q', message: 'Mijozni o\'chirish uchun faqat SUPER_ADMIN, DIREKTOR, NAZORATCHI yoki BUXGALTER ruxsatiga ega bo\'lish kerak.', linkModule: 'Mijozlar' });
       return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
@@ -873,11 +978,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logAudit('Mijozlar biriktirildi', 'Employee', employeeId, emp.name, undefined, `${clientIds.length} ta mijoz biriktirildi`);
   };
 
-  const updateDebtActTemplate = (template: string) => {
-    setDebtActTemplate(template);
+  const updateDebtActTemplateFile = (file: { base64: string; fileName: string } | null) => {
+    setDebtActTemplateFile(file);
   };
 
-  const generateDebtAct = (clientId: string) => {
+  const generateDebtAct = async (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
     const payment = payments.find(p => p.clientId === clientId);
     
@@ -901,81 +1006,156 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    // Generate debt act content using template
     const today = new Date().toLocaleDateString('uz-UZ');
-    
-    // Default template if none provided
-    const defaultTemplate = `
-QARZDORLIK AKTI
 
-{sana} yil
+    // Ushbu mijozning topshirilmagan hisobotlari — Akt jadvalidagi "Hisobot turi" va "Davri" uchun
+    const unpaidReports = taxReports.filter(r => r.clientId === clientId && r.status === 'TOPSHIRILMAGAN');
+    const hisobotTuri = unpaidReports.length > 0
+      ? [...new Set(unpaidReports.map(r => r.reportType))].join(', ')
+      : 'Belgilanmagan';
+    const davri = unpaidReports.length > 0
+      ? [...new Set(unpaidReports.map(r => periods.find(p => p.id === r.periodId)?.name || r.periodId))].join(', ')
+      : currentPeriod.name;
 
-Korxona: {korxona_nomi}
-STIR: {stir}
-Manzil: {manzil}
+    const qarzMiqdoriStr = payment.debtAmount.toLocaleString('uz-UZ') + ' so\'m';
 
-Qarzdorlik miqdori: {qarz_miqdori}
-Oylik to'lov: {oylik_tolov}
-To'langan: {tolangan}
+    const values: DebtActValues = {
+      korxona_nomi: client.name,
+      stir: client.stir,
+      manzil: client.address || 'Ko\'rsatilmagan',
+      qarz_miqdori: qarzMiqdoriStr,
+      oylik_tolov: payment.monthlyFee.toLocaleString('uz-UZ') + ' so\'m',
+      tolangan: payment.paidAmount.toLocaleString('uz-UZ') + ' so\'m',
+      sana: today,
+      hisobot_turi: hisobotTuri,
+      davri,
+      izoh: `To'lov qilinmagan ${qarzMiqdoriStr}`,
+    };
 
-_________________________
-Imzo
-`;
+    const safeName = client.name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'Mijoz';
 
-    // Use custom template or default
-    let actContent = debtActTemplate || defaultTemplate;
+    try {
+      let blob: Blob;
+      let fileName: string;
 
-    // Replace placeholders in template
-    actContent = actContent
-      .replace(/{korxona_nomi}/g, client.name)
-      .replace(/{stir}/g, client.stir)
-      .replace(/{manzil}/g, client.address || 'Ko\'rsatilmagan')
-      .replace(/{qarz_miqdori}/g, payment.debtAmount.toLocaleString() + ' so\'m')
-      .replace(/{oylik_tolov}/g, payment.monthlyFee.toLocaleString() + ' so\'m')
-      .replace(/{tolangan}/g, payment.paidAmount.toLocaleString() + ' so\'m')
-      .replace(/{sana}/g, today);
+      if (debtActTemplateFile?.base64) {
+        blob = await fillDocxTemplate(base64ToArrayBuffer(debtActTemplateFile.base64), values);
+      } else {
+        blob = await buildDefaultDebtActDocx(values);
+      }
+      fileName = `Qarzdorlik_Akt_${safeName}_${today}.docx`;
 
-    // Create and download the file as Word document
-    // Convert plain text to Word-compatible format
-    const wordContent = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' 
-            xmlns:w='urn:schemas-microsoft-com:office:word'
-            xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset="utf-8">
-        <title>Qarzdorlik Akti</title>
-        <style>
-          body { font-family: 'Times New Roman', Arial, sans-serif; font-size: 12pt; }
-          h1 { font-size: 16pt; font-weight: bold; text-align: center; }
-          p { margin: 10px 0; }
-        </style>
-      </head>
-      <body>
-        <pre style="white-space: pre-wrap; font-family: 'Times New Roman', Arial, sans-serif; font-size: 12pt;">${actContent}</pre>
-      </body>
-      </html>
-    `;
+      downloadBlob(blob, fileName);
 
-    const blob = new Blob(['\ufeff', wordContent], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Qarzdorlik_Akt_${client.name}_${today}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      logAudit('Qarzdorlik akti yuklab olindi', 'DebtAct', clientId, client.name);
+      addNotification({
+        type: 'SYSTEM',
+        title: '✅ Qarzdorlik akti yuklab olindi',
+        message: `${client.name} uchun qarzdorlik akti Word formatida yaratildi.`,
+        linkModule: 'To\'lovlar'
+      });
+    } catch (error) {
+      console.error('Qarzdorlik akti yaratilmadi:', error);
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Qarzdorlik akti yaratilmadi. Shablon .docx faylini qayta yuklang.',
+        linkModule: 'Sozlamalar'
+      });
+    }
+  };
 
-    logAudit('Qarzdorlik akti yuklab olindi', 'DebtAct', clientId, client.name);
+  const generateCombinedDebtAct = async () => {
+    const debtorClients = clients.filter(c => {
+      const payment = payments.find(p => p.clientId === c.id);
+      if (!payment || payment.debtAmount <= 0) return false;
+      return taxReports.some(r => r.clientId === c.id && r.status === 'TOPSHIRILMAGAN');
+    });
+
+    if (debtorClients.length === 0) {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: "Qarzdorligi bor va hisobot topshirmagan (Yuridik yoki YaTT) mijoz topilmadi.",
+        linkModule: 'To\'lovlar'
+      });
+      return;
+    }
+
+    const today = new Date().toLocaleDateString('uz-UZ');
+
+    const rows: DebtActValues[] = debtorClients.map(client => {
+      const payment = payments.find(p => p.clientId === client.id)!;
+      const unpaidReports = taxReports.filter(r => r.clientId === client.id && r.status === 'TOPSHIRILMAGAN');
+      const hisobotTuri = unpaidReports.length > 0
+        ? [...new Set(unpaidReports.map(r => r.reportType))].join(', ')
+        : 'Belgilanmagan';
+      const davri = unpaidReports.length > 0
+        ? [...new Set(unpaidReports.map(r => periods.find(p => p.id === r.periodId)?.name || r.periodId))].join(', ')
+        : currentPeriod.name;
+      const qarzMiqdoriStr = payment.debtAmount.toLocaleString('uz-UZ') + ' so\'m';
+
+      return {
+        korxona_nomi: client.name,
+        stir: client.stir,
+        manzil: client.address || 'Ko\'rsatilmagan',
+        qarz_miqdori: qarzMiqdoriStr,
+        oylik_tolov: payment.monthlyFee.toLocaleString('uz-UZ') + ' so\'m',
+        tolangan: payment.paidAmount.toLocaleString('uz-UZ') + ' so\'m',
+        sana: today,
+        hisobot_turi: hisobotTuri,
+        davri,
+        izoh: `To'lov qilinmagan ${qarzMiqdoriStr}`,
+      };
+    });
+
+    try {
+      const blob = await buildCombinedDebtActDocx(rows, today);
+      const fileName = `Umumiy_Qarzdorlik_Akti_${today.replace(/\./g, '-')}.docx`;
+      downloadBlob(blob, fileName);
+
+      logAudit('Umumiy qarzdorlik akti yuklab olindi', 'DebtAct', 'ALL', `${debtorClients.length} ta mijoz`);
+      addNotification({
+        type: 'SYSTEM',
+        title: '✅ Umumiy qarzdorlik akti yuklab olindi',
+        message: `${debtorClients.length} ta qarzdor va hisobot topshirmagan mijoz uchun umumiy akt yaratildi.`,
+        linkModule: 'To\'lovlar'
+      });
+    } catch (error) {
+      console.error('Umumiy qarzdorlik akti yaratilmadi:', error);
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Xatolik',
+        message: 'Umumiy qarzdorlik akti yaratilmadi.',
+        linkModule: 'To\'lovlar'
+      });
+    }
+  };
+
+  /** Kassir mijoz uchun to'lov kiritmagan bo'lsa, hisobotni "Topshirildi" deb belgilashga yo'l qo'ymaydi */
+  const canMarkReportSubmitted = (clientId: string): boolean => {
+    const payment = payments.find(p => p.clientId === clientId);
+    return !!payment && payment.status !== 'TOLANMAGAN';
+  };
+
+  const blockUnpaidSubmission = (clientId: string, clientName: string) => {
     addNotification({
       type: 'SYSTEM',
-      title: '✅ Qarzdorlik akti yuklab olindi',
-      message: `${client.name} uchun qarzdorlik akti Word formatida yaratildi.`,
-      linkModule: 'To\'lovlar'
+      title: 'Hisobotni topshirildi deb belgilab bo\'lmaydi',
+      message: `"${clientName}" uchun hali kassir tomonidan to'lov kiritilmagan. Avval "To'lovlar" bo'limida to'lovni qayd eting, so'ng hisobotni topshirildi deb belgilashingiz mumkin bo'ladi.`,
+      linkModule: 'To\'lovlar',
     });
   };
 
   const updateTaxReportStatus = (reportId: string, status: ReportStatus, proof?: ProofAttachment, notes?: string) => {
+    if (status === 'TOPSHIRILDI') {
+      const report = taxReports.find(r => r.id === reportId);
+      if (report && !canMarkReportSubmitted(report.clientId)) {
+        blockUnpaidSubmission(report.clientId, report.clientName);
+        return;
+      }
+    }
+
     const now = new Date();
     const formattedDate = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -998,6 +1178,12 @@ Imzo
   };
 
   const updateAllClientTaxReports = (clientId: string, status: ReportStatus, proof?: ProofAttachment, notes?: string) => {
+    if (status === 'TOPSHIRILDI' && !canMarkReportSubmitted(clientId)) {
+      const client = clients.find(c => c.id === clientId);
+      blockUnpaidSubmission(clientId, client?.name || 'Mijoz');
+      return;
+    }
+
     const now = new Date();
     const formattedDate = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -1127,19 +1313,28 @@ Imzo
     }));
   };
 
-  const toggle1COborotka = (id: string) => {
+  const toggle1COborotka = (id: string, untilDate?: string) => {
     const now = new Date();
-    const formattedDate = now.toISOString().split('T')[0];
+    const todayISO = now.toISOString().split('T')[0];
     setAccounting1C(prev => prev.map(a => {
       if (a.id === id) {
-        const newStatus: Status1C = a.oborotkaStatus === 'KIRITILGAN' ? 'KIRITILMAGAN' : 'KIRITILGAN';
+        // untilDate berilsa — kiritilgan (shu sanagacha); aks holda bekor
+        const markingEntered = Boolean(untilDate);
+        const newStatus: Status1C = markingEntered ? 'KIRITILGAN' : 'KIRITILMAGAN';
         const updated: Accounting1CRecord = {
           ...a,
           oborotkaStatus: newStatus,
-          oborotkaDate: newStatus === 'KIRITILGAN' ? formattedDate : undefined,
-          lastUpdated: formattedDate,
+          oborotkaDate: markingEntered ? untilDate : undefined,
+          lastUpdated: todayISO,
         };
-        logAudit('1C Oborotka holati almashtirildi', 'Accounting1C', id, a.clientName, a.oborotkaStatus, newStatus);
+        logAudit(
+          '1C Oborotka holati almashtirildi',
+          'Accounting1C',
+          id,
+          a.clientName,
+          a.oborotkaStatus,
+          markingEntered ? `KIRITILGAN (gacha: ${untilDate})` : 'KIRITILMAGAN'
+        );
         return updated;
       }
       return a;
@@ -1211,6 +1406,88 @@ Imzo
     }));
   };
 
+  const addReceipt = (clientId: string, cashAmount: number, terminalAmount: number, date?: string, notes?: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    const newReceipt: ReceiptRecord = {
+      id: `chek-${Date.now()}`,
+      clientId: client.id,
+      clientName: client.name,
+      stir: client.stir,
+      date: date || new Date().toISOString().split('T')[0],
+      cashAmount,
+      terminalAmount,
+      totalAmount: cashAmount + terminalAmount,
+      createdBy: currentUser.id,
+      createdByName: currentUser.name,
+      notes,
+    };
+
+    setReceipts(prev => [newReceipt, ...prev]);
+    logAudit('Chek yozildi', 'Receipt', newReceipt.id, client.name, undefined, `Jami: ${newReceipt.totalAmount.toLocaleString()} so'm (Naqd: ${cashAmount.toLocaleString()}, Terminal: ${terminalAmount.toLocaleString()})`);
+  };
+
+  const updateReceipt = (id: string, updates: Partial<Pick<ReceiptRecord, 'cashAmount' | 'terminalAmount' | 'date' | 'notes'>>) => {
+    setReceipts(prev => prev.map(r => {
+      if (r.id === id) {
+        const cashAmount = updates.cashAmount ?? r.cashAmount;
+        const terminalAmount = updates.terminalAmount ?? r.terminalAmount;
+        const updated: ReceiptRecord = {
+          ...r,
+          ...updates,
+          cashAmount,
+          terminalAmount,
+          totalAmount: cashAmount + terminalAmount,
+        };
+        logAudit('Chek tahrirlandi', 'Receipt', id, r.clientName, `Jami: ${r.totalAmount.toLocaleString()} so'm`, `Jami: ${updated.totalAmount.toLocaleString()} so'm`);
+        return updated;
+      }
+      return r;
+    }));
+  };
+
+  const deleteReceipt = (id: string) => {
+    const target = receipts.find(r => r.id === id);
+    if (!target) return;
+    setReceipts(prev => prev.filter(r => r.id !== id));
+    logAudit('Chek o\'chirildi', 'Receipt', id, target.clientName, `Jami: ${target.totalAmount.toLocaleString()} so'm`, undefined);
+  };
+
+  const addInvoice = (clientId: string, direction: InvoiceDirection, date: string, notes?: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    const newInvoice: InvoiceRecord = {
+      id: `inv-${Date.now()}`,
+      clientId: client.id,
+      clientName: client.name,
+      stir: client.stir,
+      direction,
+      date,
+      enteredBy: currentUser.id,
+      enteredByName: currentUser.name,
+      notes,
+    };
+
+    setInvoices(prev => [newInvoice, ...prev]);
+    logAudit(
+      direction === 'KIRIM' ? 'Kirim faktura qo\'shildi' : 'Chiqim faktura qo\'shildi',
+      'Invoice',
+      newInvoice.id,
+      client.name,
+      undefined,
+      `Sana: ${date}`
+    );
+  };
+
+  const deleteInvoice = (id: string) => {
+    const target = invoices.find(i => i.id === id);
+    if (!target) return;
+    setInvoices(prev => prev.filter(i => i.id !== id));
+    logAudit('Faktura o\'chirildi', 'Invoice', id, target.clientName, `${target.direction} - ${target.date}`, undefined);
+  };
+
   const markLetterAsRead = (letterId: string) => {
     const now = new Date();
     const formatted = `${now.toLocaleDateString('uz-UZ')} ${now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`;
@@ -1233,7 +1510,7 @@ Imzo
     }
   };
 
-  const updateLetterStatus = (letterId: string, status: any, replyDate?: string, notes?: string) => {
+  const updateLetterStatus = (letterId: string, status: any, replyDate?: string, notes?: string, proof?: ProofAttachment) => {
     setLetters(prev => prev.map(l => {
       if (l.id === letterId) {
         const updated = {
@@ -1241,6 +1518,7 @@ Imzo
           status,
           repliedAt: replyDate || l.repliedAt,
           notes: notes || l.notes,
+          proofAttachment: proof || l.proofAttachment,
         };
         logAudit('Xat holati o\'zgartirildi', 'Letter', letterId, `${l.clientName} - ${l.letterNumber}`, l.status, status);
         return updated;
@@ -1290,6 +1568,40 @@ Imzo
     });
   };
 
+  const addReminder = (reminderData: Omit<AutomaticReminder, 'id'>) => {
+    const newReminder: AutomaticReminder = {
+      id: `rem-${Date.now()}`,
+      ...reminderData,
+    };
+    setReminders(prev => [newReminder, ...prev]);
+    logAudit('Yangi eslatma qo\'shildi', 'Reminder', newReminder.id, newReminder.title);
+    addNotification({
+      type: 'SYSTEM',
+      title: 'Yangi eslatma qo\'shildi',
+      message: newReminder.title,
+      linkModule: 'Eslatmalar',
+      relatedId: newReminder.id,
+    });
+  };
+
+  const deleteReminder = (id: string) => {
+    const target = reminders.find(r => r.id === id);
+    if (!target) return;
+
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      addNotification({
+        type: 'SYSTEM',
+        title: 'Ruxsat yo\'q',
+        message: 'Faqat SUPER_ADMIN eslatmalarni o\'chira oladi.',
+        linkModule: 'Eslatmalar'
+      });
+      return;
+    }
+
+    setReminders(prev => prev.filter(r => r.id !== id));
+    logAudit('Eslatma o\'chirildi', 'Reminder', id, target.title, 'Mavjud', 'O\'chirildi');
+  };
+
   const createKameral = (auditData: Omit<KameralAudit, 'id'>) => {
     const newKameral: KameralAudit = {
       id: `kam-${Date.now()}`,
@@ -1306,10 +1618,10 @@ Imzo
     });
   };
 
-  const updateKameralStatus = (id: string, status: any, notes?: string) => {
+  const updateKameralStatus = (id: string, status: any, notes?: string, proof?: ProofAttachment) => {
     setKameral(prev => prev.map(k => {
       if (k.id === id) {
-        const updated = { ...k, status, notes: notes || k.notes };
+        const updated = { ...k, status, notes: notes || k.notes, proofAttachment: proof || k.proofAttachment };
         logAudit('Kameral holati o\'zgartirildi', 'Kameral', id, `${k.clientName} - ${k.auditType}`, k.status, status);
         return updated;
       }
@@ -1413,9 +1725,12 @@ Imzo
     addNotification({
       type: 'TASK',
       title: 'Sizga yangi topshiriq berildi',
-      message: newTask.title,
+      message: `${currentUser.name}: ${newTask.title}${newTask.description ? `\n${newTask.description}` : ''}`,
       linkModule: 'Topshiriqlar',
       relatedId: newTask.id,
+      recipientIds: newTask.assigneeIds.filter(id => id !== currentUser.id),
+      // Direktor yoki nazoratchi bergan vazifa hodim ko'rib chiqmaguncha ekran tepasida qolaveradi
+      pinned: ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role),
     });
   };
 
@@ -1499,12 +1814,14 @@ Imzo
   };
 
   const giveGift = (employeeId: string, giftType: GiftType, description: string, points: number, reason: string) => {
-    if (currentUser.role !== 'DIREKTOR' && currentUser.role !== 'NAZORATCHI') {
+    const canGive = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role);
+    if (!canGive) {
       addNotification({
         type: 'SYSTEM',
         title: 'Ruxsat yo\'q',
-        message: 'Faqat DIREKTOR va NAZORATCHI sovga bera oladi.',
-        linkModule: 'Xodimlar'
+        message: 'Faqat SUPER_ADMIN, DIREKTOR va NAZORATCHI sovga bera oladi.',
+        linkModule: 'Xodimlar',
+        recipientIds: [currentUser.id],
       });
       return;
     }
@@ -1515,7 +1832,8 @@ Imzo
         type: 'SYSTEM',
         title: 'Xatolik',
         message: 'Hodim topilmadi.',
-        linkModule: 'Xodimlar'
+        linkModule: 'Xodimlar',
+        recipientIds: [currentUser.id],
       });
       return;
     }
@@ -1552,10 +1870,14 @@ Imzo
 
     logAudit('Sovga berildi', 'Gift', newGift.id, `${employee.name} - ${giftType}`, undefined, `+${points} ball`);
     addNotification({
-      type: 'SYSTEM',
-      title: '🎁 Sovga berildi',
-      message: `${employee.name} ga ${giftType} sovgasi berildi (+${points} ball).`,
-      linkModule: 'Xodimlar'
+      type: 'GIFT',
+      title: '🎁 Sizga sovga berildi',
+      message: `${currentUser.name} sizga ${description || giftType} sovgasi berdi (+${points} ball). Sabab: ${reason}`,
+      linkModule: 'Xodimlar',
+      relatedId: newGift.id,
+      recipientIds: [employeeId],
+      // Sovga faqat SUPER_ADMIN/DIREKTOR/NAZORATCHI tomonidan beriladi — hodim ko'rib chiqmaguncha ekran tepasida qolaveradi
+      pinned: true,
     });
   };
 
@@ -1615,17 +1937,36 @@ Imzo
     };
     setChatMessages(prev => [...prev, newMessage]);
 
+    const room = chatRooms.find(r => r.id === roomId);
+    const preview = isVoice ? '🎤 Ovozli xabar' : (text || (attachment ? `📎 ${attachment.name}` : 'Xabar'));
+
     // Update room last message
     setChatRooms(prev => prev.map(r => {
       if (r.id === roomId) {
         return {
           ...r,
-          lastMessage: isVoice ? '🎤 Ovozli xabar' : (text || (attachment ? `📎 ${attachment.name}` : 'Xabar')),
+          lastMessage: preview,
           lastMessageTime: 'Hozirgina',
         };
       }
       return r;
     }));
+
+    // Admin / Direktor / Nazoratchi yozganda — a'zolarga ekran bildirishnomasi
+    const isManager = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role);
+    if (isManager && room) {
+      const recipients = room.memberIds.filter(id => id !== currentUser.id);
+      if (recipients.length > 0) {
+        addNotification({
+          type: 'CHAT',
+          title: `Yangi chat: ${currentUser.name}`,
+          message: `${room.name}: ${preview}`,
+          linkModule: 'Chat',
+          relatedId: roomId,
+          recipientIds: recipients,
+        });
+      }
+    }
   };
 
   const createChatRoom = (name: string, memberIds: string[], isGroup = false): string => {
@@ -1794,6 +2135,8 @@ Imzo
     setTaxReports(INITIAL_TAX_REPORTS);
     setAccounting1C(INITIAL_ACCOUNTING_1C);
     setPayments(INITIAL_PAYMENTS);
+    setReceipts([]);
+    setInvoices([]);
     setLetters(INITIAL_LETTERS);
     setKameral(INITIAL_KAMERAL);
     setIssues(INITIAL_ISSUES);
@@ -1810,6 +2153,8 @@ Imzo
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_taxReports`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_accounting1C`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_payments`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_receipts`);
+    localStorage.removeItem(`${REAL_STORAGE_PREFIX}_invoices`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_letters`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_kameral`);
     localStorage.removeItem(`${REAL_STORAGE_PREFIX}_issues`);
@@ -1870,6 +2215,8 @@ Imzo
         taxReports,
         accounting1C,
         payments,
+        receipts,
+        invoices,
         letters,
         kameral,
         issues,
@@ -1883,16 +2230,18 @@ Imzo
         activeTab,
         selectedClientIdForModal,
         globalSearchOpen,
-        debtActTemplate,
+        pendingChatRoomId,
+        debtActTemplateFile,
         setActiveTab,
-        switchUserRole,
         openClientCard,
         closeClientCard,
         setGlobalSearchOpen,
+        setPendingChatRoomId,
         setCurrentPeriod,
         logoutUser,
-        updateDebtActTemplate,
+        updateDebtActTemplateFile,
         generateDebtAct,
+        generateCombinedDebtAct,
         giveGift,
         deleteGift,
         addClient,
@@ -1907,6 +2256,7 @@ Imzo
         assignClientsToEmployee,
         updateTaxReportStatus,
         updateAllClientTaxReports,
+        canMarkReportSubmitted,
         createTaxReport,
         addTaxReport: createTaxReport,
         setClientReportTypes,
@@ -1915,11 +2265,18 @@ Imzo
         toggle1COborotka,
         recordPayment,
         updatePayment,
+        addReceipt,
+        updateReceipt,
+        deleteReceipt,
+        addInvoice,
+        deleteInvoice,
         markLetterAsRead,
         updateLetterStatus,
         createLetter,
         addLetter: createLetter,
         deleteLetter,
+        addReminder,
+        deleteReminder,
         createKameral,
         addKameral: createKameral,
         updateKameralStatus,

@@ -18,12 +18,11 @@ import {
   Check,
   Filter,
   UserPlus,
-  ArrowRight,
   Sparkles,
   Gift
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { UserRole, Employee, GiftType } from '../../types';
+import { UserRole, Employee, GiftType, GIFT_PRESETS } from '../../types';
 
 export const EmployeesView: React.FC = () => {
   const {
@@ -37,7 +36,6 @@ export const EmployeesView: React.FC = () => {
     updateEmployeeAvatar,
     deleteEmployee,
     assignClientsToEmployee,
-    switchUserRole,
     openDirectChatWithEmployee,
     setActiveTab,
     registerUser,
@@ -55,7 +53,7 @@ export const EmployeesView: React.FC = () => {
   const [passwordResetEmployee, setPasswordResetEmployee] = useState<Employee | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [giftEmployee, setGiftEmployee] = useState<Employee | null>(null);
-  const [giftType, setGiftType] = useState<GiftType>('BONUS');
+  const [giftType, setGiftType] = useState<GiftType>('SAMOLYOT');
   const [giftPoints, setGiftPoints] = useState(10);
   const [giftReason, setGiftReason] = useState('');
 
@@ -72,6 +70,10 @@ export const EmployeesView: React.FC = () => {
   const [selectedClientsForAssign, setSelectedClientsForAssign] = useState<string[]>([]);
 
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+  const canGiveGift = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role);
+
+  const ratingLeaderboard = [...employees]
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name));
 
   const filtered = employees.filter(e => {
     const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -236,12 +238,6 @@ export const EmployeesView: React.FC = () => {
             <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>Xodimlarni faqat Super Admin qo'shishi mumkin</span>
-              <button
-                onClick={() => switchUserRole('SUPER_ADMIN')}
-                className="px-2 py-1 bg-amber-600 text-white rounded-lg font-bold text-[10px] hover:bg-amber-700 cursor-pointer"
-              >
-                Super Admin bo'lish
-              </button>
             </div>
           )}
         </div>
@@ -255,7 +251,7 @@ export const EmployeesView: React.FC = () => {
             <Users className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{totalEmployees} nafar</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Faol jamoa a'zolari</div>
+          <div className="text-[11px] text-slate-600 mt-0.5">Faol jamoa a'zolari</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
@@ -286,10 +282,68 @@ export const EmployeesView: React.FC = () => {
         </div>
       </div>
 
+      {/* Sovg'a reytingi — ball bo'yicha 1, 2, 3... */}
+      <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Gift className="w-4 h-4 text-neutral-700" />
+            <h2 className="text-sm font-extrabold text-neutral-900">Xodimlar sovg‘a reytingi</h2>
+          </div>
+          <span className="text-[10px] text-neutral-500">Eng ko‘p ball — 1-qator</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs table-dense">
+            <thead className="bg-[#f9f9f9] text-[#777] font-semibold border-b border-neutral-200">
+              <tr>
+                <th className="px-4 py-2">O‘rin</th>
+                <th className="px-4 py-2">Xodim</th>
+                <th className="px-4 py-2">Lavozim</th>
+                <th className="px-4 py-2">Sovg‘alar</th>
+                <th className="px-4 py-2 text-right">Jami ball</th>
+                {canGiveGift && <th className="px-4 py-2 text-right">Amal</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {ratingLeaderboard.map((emp, idx) => (
+                <tr key={emp.id} className="hover:bg-neutral-50">
+                  <td className="px-4 py-2 font-extrabold text-neutral-900">{idx + 1}-</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <img src={emp.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
+                      <span className="font-bold text-neutral-900">{emp.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-neutral-600">{emp.position}</td>
+                  <td className="px-4 py-2 text-neutral-700">{emp.giftsReceived || 0} ta</td>
+                  <td className="px-4 py-2 text-right font-extrabold text-neutral-900">{emp.rating || 0}</td>
+                  {canGiveGift && (
+                    <td className="px-4 py-2 text-right">
+                      {emp.role !== 'SUPER_ADMIN' || currentUser.role === 'SUPER_ADMIN' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGiftEmployee(emp);
+                            setGiftType('SAMOLYOT');
+                            setGiftPoints(10);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-black text-white text-[10px] font-bold cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Gift className="w-3 h-3" /> Sovg‘a
+                        </button>
+                      ) : null}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
           <input
             type="text"
             placeholder="Xodim ismi, lavozimi yoki telefoni..."
@@ -341,7 +395,7 @@ export const EmployeesView: React.FC = () => {
                         className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/20" 
                       />
                       {(isSuperAdmin || emp.id === currentUser.id) && (
-                        <label className="absolute inset-0 flex items-center justify-center rounded-2xl bg-slate-900/55 text-[9px] font-bold text-white opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
+                        <label className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/55 text-[9px] font-bold text-slate-900 opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
                           <input
                             type="file"
                             accept="image/jpeg,image/png,.jpg,.jpeg,.png"
@@ -379,11 +433,11 @@ export const EmployeesView: React.FC = () => {
                 {/* Details Box */}
                 <div className="mt-4 space-y-2 text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> Telefon:</span>
+                    <span className="text-slate-600 flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> Telefon:</span>
                     <span className="font-semibold text-slate-800">{emp.phone}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> Email:</span>
+                    <span className="text-slate-600 flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> Email:</span>
                     <span className="font-medium text-slate-800 truncate max-w-[150px]">{emp.email}</span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
@@ -444,24 +498,24 @@ export const EmployeesView: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between gap-2 pt-1">
-                  <button
-                    onClick={() => switchUserRole(emp.role, emp.id)}
-                    className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-xs font-extrabold cursor-pointer transition-all flex items-center justify-center gap-1"
-                  >
-                    <span>Shu profilga o'tish</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-
-                  {isSuperAdmin && emp.role !== 'SUPER_ADMIN' && (
+                  {canGiveGift && emp.id !== currentUser.id && (
                     <>
                       <button
-                        onClick={() => setGiftEmployee(emp)}
-                        className="p-2 rounded-xl text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition-all cursor-pointer"
+                        onClick={() => {
+                          setGiftEmployee(emp);
+                          setGiftType('SAMOLYOT');
+                          setGiftPoints(10);
+                        }}
+                        className="p-2 rounded-xl text-slate-500 hover:text-neutral-900 hover:bg-neutral-100 transition-all cursor-pointer"
                         title="Sovga berish"
                       >
                         <Gift className="w-4 h-4" />
                       </button>
+                    </>
+                  )}
 
+                  {isSuperAdmin && emp.role !== 'SUPER_ADMIN' && (
+                    <>
                       <button
                         onClick={() => setEditingEmployee(emp)}
                         className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer"
@@ -483,7 +537,7 @@ export const EmployeesView: React.FC = () => {
 
                       <button
                         onClick={() => handleDeleteEmployee(emp)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
+                        className="p-2 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                         title="O'chirish"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -499,7 +553,7 @@ export const EmployeesView: React.FC = () => {
 
       {/* Add Employee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -508,10 +562,10 @@ export const EmployeesView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm">Yangi Xodim Ro'yxatdan O'tkazish</h3>
-                  <p className="text-[10px] text-slate-400">Super Admin tomonidan yangi buxgalter kiritish</p>
+                  <p className="text-[10px] text-slate-600">Super Admin tomonidan yangi buxgalter kiritish</p>
                 </div>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-600 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -595,12 +649,27 @@ export const EmployeesView: React.FC = () => {
 
               {/* Assign Clients Selection */}
               <div>
-                <label className="block text-slate-700 mb-1 font-bold">
-                  Biriktiriladigan korxonalar (Ixtiyoriy - {selectedClientsForNew.length} ta tanlandi):
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-700 font-bold">
+                    Biriktiriladigan korxonalar (Ixtiyoriy - {selectedClientsForNew.length} ta tanlandi):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedClientsForNew(prev =>
+                        prev.length === clients.length ? [] : clients.map(c => c.id)
+                      );
+                    }}
+                    className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer shrink-0"
+                  >
+                    {selectedClientsForNew.length === clients.length && clients.length > 0
+                      ? 'Barchasini bekor qilish'
+                      : 'Barchasini belgilash (YATT + Yuridik)'}
+                  </button>
+                </div>
                 <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
                   {clients.length === 0 ? (
-                    <div className="text-center py-3 text-slate-400">Korxonalar mavjud emas</div>
+                    <div className="text-center py-3 text-slate-600">Korxonalar mavjud emas</div>
                   ) : (
                     clients.map((cli) => {
                       const isChecked = selectedClientsForNew.includes(cli.id);
@@ -624,7 +693,7 @@ export const EmployeesView: React.FC = () => {
                             className="w-4 h-4 accent-emerald-600 rounded"
                           />
                           <span className="truncate">{cli.name} ({cli.stir})</span>
-                          <span className="text-[10px] text-slate-400 ml-auto shrink-0">Hozirgi: {cli.accountantName}</span>
+                          <span className="text-[10px] text-slate-600 ml-auto shrink-0">Hozirgi: {cli.accountantName}</span>
                         </label>
                       );
                     })
@@ -654,11 +723,11 @@ export const EmployeesView: React.FC = () => {
 
       {/* Edit Employee Modal */}
       {editingEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm">Xodim Ma'lumotlarini Tahrirlash</h3>
-              <button onClick={() => setEditingEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setEditingEmployee(null)} className="text-slate-600 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -761,14 +830,14 @@ export const EmployeesView: React.FC = () => {
 
       {/* Password Reset Modal */}
       {passwordResetEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm">Parolni Yangilash</h3>
-                <p className="text-[10px] text-slate-400">{passwordResetEmployee.name} uchun yangi kirish paroli</p>
+                <p className="text-[10px] text-slate-600">{passwordResetEmployee.name} uchun yangi kirish paroli</p>
               </div>
-              <button onClick={() => setPasswordResetEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setPasswordResetEmployee(null)} className="text-slate-600 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -808,7 +877,7 @@ export const EmployeesView: React.FC = () => {
 
       {/* Gift Modal */}
       {giftEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -817,35 +886,47 @@ export const EmployeesView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm">Sovga Berish</h3>
-                  <p className="text-[10px] text-slate-400">{giftEmployee.name} ga sovga berish</p>
+                  <p className="text-[10px] text-slate-600">{giftEmployee.name} ga sovga berish</p>
                 </div>
               </div>
-              <button onClick={() => setGiftEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setGiftEmployee(null)} className="text-slate-600 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={(e) => {
               e.preventDefault();
-              giveGift(giftEmployee.id, giftType, giftReason, giftPoints, giftReason);
+              const preset = GIFT_PRESETS.find(g => g.type === giftType);
+              const label = preset ? `${preset.emoji} ${preset.label}` : giftType;
+              giveGift(giftEmployee.id, giftType, label, giftPoints, giftReason);
               setGiftEmployee(null);
               setGiftReason('');
               setGiftPoints(10);
+              setGiftType('SAMOLYOT');
             }} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-700 mb-1 font-bold">Sovga turi</label>
-                <select
-                  value={giftType}
-                  onChange={(e) => setGiftType(e.target.value as GiftType)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none font-medium"
-                >
-                  <option value="BONUS">Bonus</option>
-                  <option value="QOSHIMCHA_TATIL">Qo'shimcha Tatil</option>
-                  <option value="PREMIYA">Premiya</option>
-                  <option value="RAHMAT">Rahmat</option>
-                  <option value="YILDAVY_SOVGA">Yildavoy Sovga</option>
-                  <option value="BOSHQA">Boshqa</option>
-                </select>
+                <label className="block text-slate-700 mb-1 font-bold">Sovga turi (ball avtomatik)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {GIFT_PRESETS.map((g) => (
+                    <button
+                      key={g.type}
+                      type="button"
+                      onClick={() => {
+                        setGiftType(g.type);
+                        setGiftPoints(g.points);
+                      }}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        giftType === g.type
+                          ? 'border-black bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-400'
+                      }`}
+                    >
+                      <div className="text-base">{g.emoji}</div>
+                      <div className="font-bold text-neutral-900">{g.label}</div>
+                      <div className="text-[10px] text-neutral-500">+{g.points} ball</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -856,7 +937,7 @@ export const EmployeesView: React.FC = () => {
                   onChange={(e) => setGiftPoints(parseInt(e.target.value) || 0)}
                   min="1"
                   max="100"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-purple-600 font-medium"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-black font-medium"
                   required
                 />
               </div>
@@ -868,7 +949,7 @@ export const EmployeesView: React.FC = () => {
                   value={giftReason}
                   onChange={(e) => setGiftReason(e.target.value)}
                   placeholder="Masalan: Yaxshi ish uchun"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-purple-600 font-medium"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-black font-medium"
                   required
                 />
               </div>
@@ -883,7 +964,7 @@ export const EmployeesView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-black text-white font-bold hover:bg-neutral-800 cursor-pointer"
                 >
                   Sovga Berish
                 </button>
@@ -895,18 +976,18 @@ export const EmployeesView: React.FC = () => {
 
       {/* Assign Clients Modal */}
       {assigningEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm">
                   {assigningEmployee.name} ga Korxonalarni Biriktirish
                 </h3>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-600">
                   Tanlangan korxonalar hisob-kitobini ushbu buxgalter boshqaradi
                 </p>
               </div>
-              <button onClick={() => setAssigningEmployee(null)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setAssigningEmployee(null)} className="text-slate-600 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -915,11 +996,24 @@ export const EmployeesView: React.FC = () => {
               <div className="flex items-center justify-between bg-slate-100 p-2.5 rounded-xl font-bold">
                 <span>Jami korxonalar: {clients.length} ta</span>
                 <span className="text-emerald-700">Biriktirildi: {selectedClientsForAssign.length} ta</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedClientsForAssign(prev =>
+                      prev.length === clients.length ? [] : clients.map(c => c.id)
+                    );
+                  }}
+                  className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer shrink-0"
+                >
+                  {selectedClientsForAssign.length === clients.length && clients.length > 0
+                    ? 'Barchasini bekor qilish'
+                    : 'Barchasini belgilash (YATT + Yuridik)'}
+                </button>
               </div>
 
               <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
                 {clients.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400">Tizimda korxonalar topilmadi</div>
+                  <div className="text-center py-6 text-slate-600">Tizimda korxonalar topilmadi</div>
                 ) : (
                   clients.map((cli) => {
                     const isChecked = selectedClientsForAssign.includes(cli.id);
@@ -944,7 +1038,7 @@ export const EmployeesView: React.FC = () => {
                         />
                         <div className="min-w-0 flex-1">
                           <div className="text-xs truncate">{cli.name}</div>
-                          <div className="text-[10px] text-slate-400">STIR: {cli.stir} • {cli.taxType}</div>
+                          <div className="text-[10px] text-slate-600">STIR: {cli.stir} • {cli.taxType}</div>
                         </div>
                         <span className="text-[10px] text-slate-500 bg-white/70 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
                           {cli.accountantName}

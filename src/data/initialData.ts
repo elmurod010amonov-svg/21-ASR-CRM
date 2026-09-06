@@ -26,14 +26,14 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     position: 'Bosh Boshqaruvchi (Super Admin)',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     status: 'ACTIVE',
-    assignedClientCount: 12,
-    reportCompletionRate: 100,
+    assignedClientCount: 0,
+    reportCompletionRate: 0,
     completedTasksCount: 0,
-    pendingTasksCount: 1,
+    pendingTasksCount: 0,
     overdueTasksCount: 0,
     issuesCount: 0,
     lettersCount: 0,
-    accounting1CCount: 12,
+    accounting1CCount: 0,
     rating: 0,
     giftsReceived: 0,
   }
@@ -71,301 +71,13 @@ export const INITIAL_PERIODS: ReportPeriod[] = [
   },
 ];
 
-export const INITIAL_TAX_REPORTS: TaxReport[] = [
-  {
-    id: 'rep-1',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    reportType: 'AYLANMA',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-    notes: 'Kassa tushumlari hisoblanmoqda, 15-avgustgacha topshirish lozim.',
-  },
-  {
-    id: 'rep-2',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    reportType: 'JSHDS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-3',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    reportType: 'INPS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-5',
-    clientId: 'cli-2',
-    clientName: 'MEGA SOFT SERVIS MCHJ',
-    stir: '308726154',
-    reportType: 'QQS',
-    periodId: 'per-2026-08',
-    status: 'JARAYONDA',
-    accountantId: 'emp-1',
-    notes: 'Kirim fakturalar tekshirilmoqda, eksport nol stavkasi tasdiqlanmoqda.',
-  },
-  {
-    id: 'rep-6',
-    clientId: 'cli-2',
-    clientName: 'MEGA SOFT SERVIS MCHJ',
-    stir: '308726154',
-    reportType: 'JSHDS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-7',
-    clientId: 'cli-2',
-    clientName: 'MEGA SOFT SERVIS MCHJ',
-    stir: '308726154',
-    reportType: 'INPS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-9',
-    clientId: 'cli-3',
-    clientName: 'SAMARQAND TEXTILE YA TT',
-    stir: '512938471',
-    reportType: 'JSHDS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-10',
-    clientId: 'cli-3',
-    clientName: 'SAMARQAND TEXTILE YA TT',
-    stir: '512938471',
-    reportType: 'INPS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-11',
-    clientId: 'cli-4',
-    clientName: 'TOSHKENT LOGISTIKA MCHJ',
-    stir: '309182736',
-    reportType: 'QQS',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'rep-12',
-    clientId: 'cli-5',
-    clientName: 'BARAKA AGRO PLUS MCHJ',
-    stir: '301294857',
-    reportType: 'FOYDA',
-    periodId: 'per-2026-08',
-    status: 'TOPSHIRILMAGAN',
-    accountantId: 'emp-1',
-  },
-];
-
-export const INITIAL_ACCOUNTING_1C: Accounting1CRecord[] = [
-  {
-    id: 'acc-1',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    periodId: 'per-2026-08',
-    oborotkaStatus: 'KIRITILMAGAN',
-    incomingInvoicesCount: 28,
-    incomingInvoicesEntered: 28,
-    incomingStatus: 'KIRITILGAN',
-    outgoingInvoicesCount: 14,
-    outgoingInvoicesEntered: 14,
-    outgoingStatus: 'KIRITILGAN',
-    accountantId: 'emp-1',
-    issuesCount: 0,
-    lastUpdated: '2026-08-14',
-  },
-  {
-    id: 'acc-2',
-    clientId: 'cli-2',
-    clientName: 'MEGA SOFT SERVIS MCHJ',
-    stir: '308726154',
-    periodId: 'per-2026-08',
-    oborotkaStatus: 'KIRITILMAGAN',
-    incomingInvoicesCount: 15,
-    incomingInvoicesEntered: 12,
-    incomingStatus: 'KIRITILMAGAN',
-    outgoingInvoicesCount: 42,
-    outgoingInvoicesEntered: 40,
-    outgoingStatus: 'KIRITILMAGAN',
-    accountantId: 'emp-1',
-    issuesCount: 0,
-    lastUpdated: '2026-08-14',
-  },
-  {
-    id: 'acc-3',
-    clientId: 'cli-3',
-    clientName: 'SAMARQAND TEXTILE YA TT',
-    stir: '512938471',
-    periodId: 'per-2026-08',
-    oborotkaStatus: 'KIRITILMAGAN',
-    incomingInvoicesCount: 8,
-    incomingInvoicesEntered: 8,
-    incomingStatus: 'KIRITILGAN',
-    outgoingInvoicesCount: 3,
-    outgoingInvoicesEntered: 3,
-    outgoingStatus: 'KIRITILGAN',
-    accountantId: 'emp-1',
-    issuesCount: 0,
-    lastUpdated: '2026-08-14',
-  },
-  {
-    id: 'acc-4',
-    clientId: 'cli-4',
-    clientName: 'TOSHKENT LOGISTIKA MCHJ',
-    stir: '309182736',
-    periodId: 'per-2026-08',
-    oborotkaStatus: 'KIRITILMAGAN',
-    incomingInvoicesCount: 45,
-    incomingInvoicesEntered: 22,
-    incomingStatus: 'KIRITILMAGAN',
-    outgoingInvoicesCount: 31,
-    outgoingInvoicesEntered: 31,
-    outgoingStatus: 'KIRITILGAN',
-    accountantId: 'emp-1',
-    issuesCount: 0,
-    lastUpdated: '2026-08-14',
-  },
-];
-
-export const INITIAL_PAYMENTS: PaymentRecord[] = [
-  {
-    id: 'pay-1',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    monthlyFee: 2500000,
-    paidAmount: 2500000,
-    debtAmount: 0,
-    lastPaymentDate: '2026-08-05',
-    nextDueDate: '2026-09-05',
-    status: 'TOLANGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'pay-2',
-    clientId: 'cli-2',
-    clientName: 'MEGA SOFT SERVIS MCHJ',
-    stir: '308726154',
-    monthlyFee: 4000000,
-    paidAmount: 2000000,
-    debtAmount: 2000000,
-    lastPaymentDate: '2026-08-01',
-    nextDueDate: '2026-08-15',
-    status: 'QISMAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'pay-3',
-    clientId: 'cli-3',
-    clientName: 'SAMARQAND TEXTILE YA TT',
-    stir: '512938471',
-    monthlyFee: 1200000,
-    paidAmount: 0,
-    debtAmount: 1200000,
-    nextDueDate: '2026-08-15',
-    status: 'TOLANMAGAN',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'pay-4',
-    clientId: 'cli-4',
-    clientName: 'TOSHKENT LOGISTIKA MCHJ',
-    stir: '309182736',
-    monthlyFee: 3800000,
-    paidAmount: 0,
-    debtAmount: 3800000,
-    nextDueDate: '2026-08-10',
-    status: 'TOLANMAGAN',
-    accountantId: 'emp-1',
-  },
-];
-
-export const INITIAL_LETTERS: LetterRecord[] = [
-  {
-    id: 'let-1',
-    clientId: 'cli-1',
-    clientName: 'DILSHOD MILLIY SHASHLIK LARI',
-    stir: '304918273',
-    letterNumber: 'X-2026/8941',
-    type: 'Soliq qo\'mitasi talabnomasi',
-    summary: 'Kassa apparati fiskal ma\'lumotlari tafovuti bo\'yicha tushuntirish berish talabnomasi',
-    receivedDate: '2026-08-10',
-    responseDeadline: '2026-08-20',
-    status: 'OQILGAN',
-    readAt: '2026-08-11 09:34',
-    readBy: 'Jahongir Amonov',
-    accountantId: 'emp-1',
-  },
-  {
-    id: 'let-2',
-    clientId: 'cli-8',
-    clientName: 'ORIENT PHARM MCHJ',
-    stir: '302948571',
-    letterNumber: 'KAM-2026/1029',
-    type: 'Kameral xabarnoma',
-    summary: 'QQS hisoboti bo\'yicha kameral xabarnoma (tafovut 14,200,000 so\'m)',
-    receivedDate: '2026-08-12',
-    responseDeadline: '2026-08-22',
-    status: 'YANGI',
-    accountantId: 'emp-1',
-  },
-];
-
-export const INITIAL_KAMERAL: KameralAudit[] = [
-  {
-    id: 'kam-1',
-    clientId: 'cli-8',
-    clientName: 'ORIENT PHARM MCHJ',
-    stir: '302948571',
-    auditType: 'QQS Kameral Tekshiruvi',
-    receivedDate: '2026-08-12',
-    deadlineDate: '2026-08-22',
-    discrepancyAmount: 14200000,
-    summary: 'Dorixona chakana savdosi va Didox fakturalar summasi o\'rtasidagi tafovut.',
-    status: 'OCHIQ',
-    accountantId: 'emp-1',
-  },
-];
-
+export const INITIAL_TAX_REPORTS: TaxReport[] = [];
+export const INITIAL_ACCOUNTING_1C: Accounting1CRecord[] = [];
+export const INITIAL_PAYMENTS: PaymentRecord[] = [];
+export const INITIAL_LETTERS: LetterRecord[] = [];
+export const INITIAL_KAMERAL: KameralAudit[] = [];
 export const INITIAL_ISSUES: IssueRecord[] = [];
-
-export const INITIAL_TASKS: TaskRecord[] = [
-  {
-    id: 'tsk-1',
-    title: 'Buxgalterlar jamoasini shakllantirish va korxonalarni taqsimlash',
-    description: 'Super Admin sifatida buxgalterlar va nazoratchilarni tizimga qo\'shing hamda ularga korxonalarni biriktiring.',
-    creatorId: 'emp-1',
-    creatorName: 'Jahongir Amonov (Super Admin)',
-    assigneeIds: ['emp-1'],
-    assigneeNames: ['Jahongir Amonov'],
-    createdAt: '2026-08-14',
-    deadlineDate: '2026-08-20',
-    priority: 'JUDA_MUHIM',
-    status: 'YANGI',
-    acceptedBy: ['emp-1'],
-    notes: 'Super Admin uchun dastlabki boshqaruv vazifasi.'
-  }
-];
+export const INITIAL_TASKS: TaskRecord[] = [];
 
 export const INITIAL_REMINDERS: AutomaticReminder[] = [
   {
@@ -428,60 +140,12 @@ export const INITIAL_CHAT_ROOMS: ChatRoom[] = [
     isGeneralStaffGroup: true,
     memberIds: ['emp-1'],
     memberNames: ['Jahongir Amonov'],
-    lastMessage: '21-ASR CRM jamoa chatiga xush kelibsiz!',
-    lastMessageTime: 'Bugun 10:00',
+    lastMessage: '',
+    lastMessageTime: '',
     unreadCount: 0,
   }
 ];
 
-export const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-welcome',
-    roomId: 'room-general',
-    senderId: 'emp-1',
-    senderName: 'Jahongir Amonov',
-    senderRole: 'SUPER_ADMIN',
-    senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    text: 'Assalomu alaykum! 21-ASR Buxgalteriya tizimi jamoa muloqot xonasi faollashtirildi. Barcha yangi qo\'shilgan xodimlar ushbu xonada tezkor xabar almashishi mumkin.',
-    timestamp: '2026-08-14 10:00',
-    isRead: true,
-  }
-];
-
-export const INITIAL_AUDIT_LOGS: AuditLogRecord[] = [
-  {
-    id: 'aud-1',
-    userId: 'emp-1',
-    userName: 'Jahongir Amonov',
-    userRole: 'SUPER_ADMIN',
-    action: 'Tizim ishga tushirildi',
-    objectType: 'System',
-    objectId: 'sys-init',
-    objectName: '21-ASR CRM Platformasi',
-    newValue: 'Super Admin profili faollashtirildi',
-    timestamp: '2026-08-14 09:00',
-    ipAddress: '195.158.30.1',
-  }
-];
-
-export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    type: 'DEADLINE',
-    title: 'Soliq hisoboti deadline yaqinlashmoqda!',
-    message: 'Avgust 2026 hisobot davri uchun oxirgi muddat: 15-avgust. Topshirilmagan hisobotlar mavjud.',
-    timestamp: '10 daqiqa oldin',
-    read: false,
-    linkModule: 'Hisobotlar',
-  },
-  {
-    id: 'notif-2',
-    type: 'LETTER',
-    title: 'Yangi kameral xabarnoma keldi',
-    message: 'ORIENT PHARM MCHJ bo\'yicha QQS kameral tekshiruvi xati keldi. Hali o\'qilmagan.',
-    timestamp: '1 soat oldin',
-    read: false,
-    linkModule: 'Xatlar',
-    relatedId: 'let-2',
-  },
-];
+export const INITIAL_CHAT_MESSAGES: ChatMessage[] = [];
+export const INITIAL_AUDIT_LOGS: AuditLogRecord[] = [];
+export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];

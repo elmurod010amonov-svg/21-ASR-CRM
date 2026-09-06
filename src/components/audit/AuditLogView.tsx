@@ -23,7 +23,7 @@ export const AuditLogView: React.FC = () => {
       </div>
 
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-        <Search className="w-4 h-4 text-slate-400" />
+        <Search className="w-4 h-4 text-slate-600" />
         <input
           type="text"
           placeholder="Xodim ismi, amal nomi, korxona yoki tafsilot bo'yicha qidiruv..."
@@ -48,7 +48,7 @@ export const AuditLogView: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-400">Audit yozuvlari topilmadi.</td>
+                  <td colSpan={5} className="p-8 text-center text-slate-600">Audit yozuvlari topilmadi.</td>
                 </tr>
               ) : (
                 filtered.map((log) => (
@@ -71,7 +71,7 @@ export const AuditLogView: React.FC = () => {
                     <td className="p-3.5 text-slate-600">
                       <div>{log.details}</div>
                       {log.oldValue && log.newValue && (
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="text-[10px] text-slate-600 mt-0.5">
                           <span className="line-through text-rose-500">{log.oldValue}</span> &rarr; <span className="text-emerald-700 font-bold">{log.newValue}</span>
                         </div>
                       )}

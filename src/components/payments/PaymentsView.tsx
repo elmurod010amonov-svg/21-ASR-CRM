@@ -3,7 +3,8 @@ import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowU
 import { useCRM } from '../../context/CRMContext';
 
 export const PaymentsView: React.FC = () => {
-  const { payments, recordPayment, openClientCard, currentUser, generateDebtAct } = useCRM();
+  const { payments, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct } = useCRM();
+  const canGenerateAct = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR';
   const canManagePayments = currentUser.role === 'KASSIR';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -37,45 +38,55 @@ export const PaymentsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900">Buxgalteriya Xizmat To'lovlari & Qarzdorlik</h1>
-          <p className="text-xs text-slate-500">Mijozlar bilan tuzilgan shartnoma bo'yicha oylik to'lovlar intizomi</p>
+          <p className="text-xs text-slate-600">Mijozlar bilan tuzilgan shartnoma bo'yicha oylik to'lovlar intizomi</p>
         </div>
+        {canGenerateAct && (
+          <button
+            onClick={() => generateCombinedDebtAct()}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs shrink-0"
+            title="Qarzdorligi bor va hisobot topshirmagan barcha Yuridik/YaTT mijozlar uchun bitta Word faylida umumiy akt"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Umumiy Akt (Barcha Qarzdorlar)
+          </button>
+        )}
       </div>
 
       {/* 3 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-xs font-bold text-slate-500 uppercase">Jami Oylik Shartnomalar</span>
+          <span className="text-xs font-bold text-slate-600 uppercase">Jami Oylik Shartnomalar</span>
           <div className="text-2xl font-black text-slate-900">{totalContract.toLocaleString()} so'm</div>
         </div>
 
         <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 shadow-2xs space-y-1">
-          <span className="text-xs font-bold text-emerald-800 uppercase">🟢 Tushgan To'lovlar</span>
-          <div className="text-2xl font-black text-emerald-900">{totalPaid.toLocaleString()} so'm</div>
+          <span className="text-xs font-bold text-emerald-700 uppercase">🟢 Tushgan To'lovlar</span>
+          <div className="text-2xl font-black text-emerald-600">{totalPaid.toLocaleString()} so'm</div>
         </div>
 
         <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 shadow-2xs space-y-1">
-          <span className="text-xs font-bold text-rose-800 uppercase">🔴 Qoldiq Qarzdorlik</span>
-          <div className="text-2xl font-black text-rose-700">{totalDebt.toLocaleString()} so'm</div>
+          <span className="text-xs font-bold text-rose-700 uppercase">🔴 Qoldiq Qarzdorlik</span>
+          <div className="text-2xl font-black text-rose-600">{totalDebt.toLocaleString()} so'm</div>
         </div>
       </div>
 
       {/* Filter and Search */}
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
           <input
             type="text"
             placeholder="Mijoz nomi yoki STIR..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 focus:bg-white"
+            className="w-full pl-9 pr-4 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs outline-none focus:border-emerald-500 text-slate-900 placeholder:text-slate-500"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 outline-none cursor-pointer"
+          className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 outline-none cursor-pointer"
         >
           <option value="ALL">Barcha To'lov Holatlari</option>
           <option value="TOLANGAN">To'langan</option>
@@ -88,7 +99,7 @@ export const PaymentsView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+            <thead className="bg-white text-slate-700 font-bold border-b border-slate-200">
               <tr>
                 <th className="p-3.5">Mijoz & STIR</th>
                 <th className="p-3.5">Oylik Tarif</th>
@@ -99,9 +110,9 @@ export const PaymentsView: React.FC = () => {
                 <th className="p-3.5 text-right">To'lov Yozish</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50">
+                <tr key={item.id} className="hover:bg-slate-100/50">
                   <td className="p-3.5">
                     <div 
                       onClick={() => openClientCard(item.clientId)}
@@ -109,27 +120,27 @@ export const PaymentsView: React.FC = () => {
                     >
                       {item.clientName}
                     </div>
-                    <div className="text-[11px] text-slate-500">STIR: {item.stir}</div>
+                    <div className="text-[11px] text-slate-600">STIR: {item.stir}</div>
                   </td>
                   <td className="p-3.5 font-bold text-slate-900">
                     {item.monthlyFee.toLocaleString()} so'm
                   </td>
-                  <td className="p-3.5 font-semibold text-emerald-700">
+                  <td className="p-3.5 font-semibold text-emerald-600">
                     {item.paidAmount.toLocaleString()} so'm
                   </td>
-                  <td className="p-3.5 font-bold text-rose-700">
+                  <td className="p-3.5 font-bold text-rose-600">
                     {item.debtAmount > 0 ? `${item.debtAmount.toLocaleString()} so'm` : '0 so\'m'}
                   </td>
                   <td className="p-3.5">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      item.status === 'TOLANGAN' ? 'bg-emerald-100 text-emerald-800' :
-                      item.status === 'QISMAN' ? 'bg-amber-100 text-amber-800' :
-                      'bg-rose-100 text-rose-800 animate-pulse'
+                      item.status === 'TOLANGAN' ? 'bg-emerald-50 text-emerald-700' :
+                      item.status === 'QISMAN' ? 'bg-amber-50 text-amber-800' :
+                      'bg-rose-50 text-rose-700 animate-pulse'
                     }`}>
                       {item.status}
                     </span>
                   </td>
-                  <td className="p-3.5 text-slate-500">
+                  <td className="p-3.5 text-slate-600">
                     {item.lastPaymentDate || '—'}
                   </td>
                   <td className="p-3.5 text-right">
@@ -168,7 +179,7 @@ export const PaymentsView: React.FC = () => {
 
       {/* Quick Payment Modal */}
       {selectedClientForPay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
             <h3 className="font-extrabold text-slate-900 text-sm">To'lovni Qabul Qilish</h3>
             <form onSubmit={handlePaySubmit} className="space-y-3 text-xs">

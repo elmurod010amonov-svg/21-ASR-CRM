@@ -34,7 +34,9 @@ export const ChatView: React.FC = () => {
     openDirectChatWithEmployee,
     deleteChatMessage,
     clearChatRoom,
-    setActiveTab
+    setActiveTab,
+    pendingChatRoomId,
+    setPendingChatRoomId,
   } = useCRM();
 
   const [activeRoomId, setActiveRoomId] = useState<string>(() => chatRooms[0]?.id || 'room-general');
@@ -47,6 +49,13 @@ export const ChatView: React.FC = () => {
   const [chatFilter, setChatFilter] = useState<'ALL' | 'GROUPS' | 'DIRECT'>('ALL');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (pendingChatRoomId) {
+      setActiveRoomId(pendingChatRoomId);
+      setPendingChatRoomId(null);
+    }
+  }, [pendingChatRoomId, setPendingChatRoomId]);
 
   // Ensure active room always exists
   const activeRoom: ChatRoom = chatRooms.find(r => r.id === activeRoomId) || chatRooms[0] || {
@@ -187,7 +196,7 @@ export const ChatView: React.FC = () => {
 
           {/* Search box */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-600" />
             <input
               type="text"
               placeholder="Suhbat yoki xabarlarni qidirish..."
@@ -201,7 +210,7 @@ export const ChatView: React.FC = () => {
         {/* Room items list */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-1.5 space-y-1">
           {filteredRooms.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-400">
+            <div className="p-6 text-center text-xs text-slate-600">
               Ushbu toifada suhbatlar topilmadi.
             </div>
           ) : (
@@ -227,10 +236,10 @@ export const ChatView: React.FC = () => {
                       <span className={`text-xs truncate ${isActive ? 'font-black text-emerald-950' : 'font-bold text-slate-900'}`}>
                         {room.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 shrink-0">{room.lastMessageTime}</span>
+                      <span className="text-[10px] text-slate-600 shrink-0">{room.lastMessageTime}</span>
                     </div>
                     <p className="text-[11px] text-slate-500 truncate mt-0.5">{room.lastMessage || 'Xabarlar...'}</p>
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-600">
                       <span>{room.isGroup ? `${memberCount} a'zo` : 'Shaxsiy'}</span>
                     </div>
                   </div>
@@ -279,7 +288,7 @@ export const ChatView: React.FC = () => {
             </div>
             <div className="truncate">
               <div className="text-xs font-black text-slate-900 truncate">{activeRoom?.name}</div>
-              <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+              <div className="text-[10px] text-slate-600 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span>
                   {activeRoom?.isGroup 
@@ -319,7 +328,7 @@ export const ChatView: React.FC = () => {
                 <MessageSquare className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-slate-800 text-sm mb-1">Ushbu xonada hali xabarlar yo'q</h3>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto mb-4">
+              <p className="text-xs text-slate-600 max-w-xs mx-auto mb-4">
                 Birinchi bo'lib savol bering, topshiriq biriktiring yoki jamoaga xabar qoldiring!
               </p>
               <div className="flex items-center justify-center gap-2">
@@ -374,16 +383,16 @@ export const ChatView: React.FC = () => {
                         <div className={`mt-2 p-2 rounded-xl flex items-center gap-2 border text-xs ${
                           isMe ? 'bg-emerald-700/60 border-emerald-500/50 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
                         }`}>
-                          <FileText className="w-4 h-4 shrink-0 text-emerald-400" />
+                          <FileText className="w-4 h-4 shrink-0 text-emerald-600" />
                           <div className="flex-1 truncate font-medium">{msg.attachment.name}</div>
                           <span className="text-[10px] opacity-75 shrink-0">{msg.attachment.size}</span>
                         </div>
                       )}
 
                       {/* Footer time & read status */}
-                      <div className={`text-[9px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-emerald-100' : 'text-slate-400'}`}>
+                      <div className={`text-[9px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-emerald-100' : 'text-slate-600'}`}>
                         <span>{msg.timestamp}</span>
-                        {isMe && <CheckCheck className="w-3 h-3 text-emerald-200" />}
+                        {isMe && <CheckCheck className="w-3 h-3 text-emerald-800" />}
                       </div>
 
                       {/* Delete action button on hover */}
@@ -407,7 +416,7 @@ export const ChatView: React.FC = () => {
 
         {/* Quick Emoji Bar */}
         <div className="px-4 py-1.5 bg-slate-50 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto">
-          <span className="text-[10px] font-bold text-slate-400 shrink-0">Tezkor:</span>
+          <span className="text-[10px] font-bold text-slate-600 shrink-0">Tezkor:</span>
           {['👍', '👋', '📊', '📑', '✅', '⚡', '🔔', '🚀', '🤝', '💡'].map((emoji) => (
             <button
               key={emoji}
@@ -468,7 +477,7 @@ export const ChatView: React.FC = () => {
 
       {/* New Chat Modal */}
       {showNewChatModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 animate-in zoom-in-95 duration-150 border border-slate-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
@@ -479,12 +488,12 @@ export const ChatView: React.FC = () => {
                   <h3 className="text-sm font-extrabold text-slate-900">
                     {newGroupMode ? 'Yangi Guruh Yaratish' : 'Yangi Suhbat Boshlash'}
                   </h3>
-                  <p className="text-[10px] text-slate-400">Jamoa a'zosi bilan 1-on-1 yoki guruh chati</p>
+                  <p className="text-[10px] text-slate-600">Jamoa a'zosi bilan 1-on-1 yoki guruh chati</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowNewChatModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="p-1 rounded-lg text-slate-600 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -517,7 +526,7 @@ export const ChatView: React.FC = () => {
                 <p className="text-xs font-bold text-slate-700">Muloqot qilmoqchi bo'lgan xodimni tanlang:</p>
                 <div className="max-h-64 overflow-y-auto space-y-1.5 p-1">
                   {otherEmployees.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">
+                    <div className="p-4 text-center text-xs text-slate-600">
                       Tizimda boshqa xodimlar topilmadi. Super Admin avval Xodimlar bo'limidan xodimlarni qo'shishi kerak.
                     </div>
                   ) : (
@@ -531,14 +540,14 @@ export const ChatView: React.FC = () => {
                           <img src={emp.avatar} alt={emp.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
                           <div className="truncate">
                             <div className="text-xs font-bold text-slate-900 group-hover:text-emerald-950 truncate">{emp.name}</div>
-                            <div className="text-[10px] text-slate-400 truncate">{emp.position}</div>
+                            <div className="text-[10px] text-slate-600 truncate">{emp.position}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-slate-100 text-slate-700">
                             {emp.role}
                           </span>
-                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                          <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
                         </div>
                       </div>
                     ))
@@ -563,7 +572,7 @@ export const ChatView: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-700 mb-1">A'zolarni tanlang:</label>
                   <div className="max-h-48 overflow-y-auto space-y-1 p-1 border border-slate-200 rounded-xl">
                     {otherEmployees.length === 0 ? (
-                      <div className="p-3 text-center text-xs text-slate-400">
+                      <div className="p-3 text-center text-xs text-slate-600">
                         Boshqa xodimlar mavjud emas.
                       </div>
                     ) : (

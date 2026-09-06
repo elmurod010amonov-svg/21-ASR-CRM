@@ -1,26 +1,21 @@
 import React, { useState } from 'react';
-import { 
-  Settings, 
-  Shield, 
-  Bell, 
-  Database, 
-  RefreshCw, 
-  Smartphone, 
-  Zap, 
-  Activity, 
-  Wrench, 
-  CheckCircle2,
-  Sparkles,
+import {
+  Settings,
+  Smartphone,
+  Activity,
+  Wrench,
   Download,
   Upload,
-  FileText
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
+import { arrayBufferToBase64 } from '../../utils/debtActDocx';
 
 export const SettingsView: React.FC = () => {
-  const { 
-    currentPeriod, 
-    periods, 
+  const {
+    currentPeriod,
+    periods,
     setCurrentPeriod,
     scanResult,
     runDatabaseScan,
@@ -29,38 +24,68 @@ export const SettingsView: React.FC = () => {
     clients,
     taxReports,
     currentUser,
-    debtActTemplate,
-    updateDebtActTemplate
+    debtActTemplateFile,
+    updateDebtActTemplateFile
   } = useCRM();
 
-  const [templateInput, setTemplateInput] = useState(debtActTemplate);
+  const [uploadError, setUploadError] = useState('');
 
   const handleFix = () => {
     applyDatabaseAutoFix();
   };
 
-  const handleSaveTemplate = () => {
-    updateDebtActTemplate(templateInput);
-    alert('Qarzdorlik akti shabloni saqlandi!');
+  const isWordZip = (buffer: ArrayBuffer) => {
+    const bytes = new Uint8Array(buffer.slice(0, 4));
+    return bytes[0] === 0x50 && bytes[1] === 0x4b;
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const saveWordTemplate = async (file: File) => {
+    const lower = file.name.toLowerCase();
+    const isWordName = lower.endsWith('.docx') || lower.endsWith('.doc');
+    const isWordMime =
+      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      file.type === 'application/msword';
+
+    if (!isWordName && !isWordMime) {
+      setUploadError('Faqat Word fayl yuklang: .docx');
+      return;
+    }
+
+    const buffer = await file.arrayBuffer();
+    if (!isWordZip(buffer)) {
+      setUploadError('Bu eski Word (.doc) formati. Word’da «Saqlash» → «Word hujjati (*.docx)» qilib yuklang.');
+      return;
+    }
+
+    if (buffer.byteLength > 10 * 1024 * 1024) {
+      setUploadError('Fayl hajmi 10 MB dan oshmasligi kerak. Rasm/logotiplarni siqib, qayta saqlab yuklang.');
+      return;
+    }
+
+    const base64 = arrayBufferToBase64(buffer);
+    const fileName = lower.endsWith('.doc') ? file.name.replace(/\.doc$/i, '.docx') : file.name;
+    updateDebtActTemplateFile({ base64, fileName });
+    setUploadError('');
+    alert('Word shabloni yuklandi. Qarzdor mijozlar uchun Akt tugmasi shu Word fayldan foydalanadi.');
+  };
+
+  const handleResetToDefault = () => {
+    if (!window.confirm('O\'zingiz yuklagan Word shablonini o\'chirib, tizimning standart AKT shabloniga qaytarilsinmi?')) return;
+    updateDebtActTemplateFile(null);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      // For Word files, we'll extract text content
-      if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
-        // For now, we'll store the base64 content
-        // In a real implementation, you'd use a library like mammoth.js to extract text from .docx
-        setTemplateInput(content);
-      } else {
-        setTemplateInput(content);
-      }
-    };
-    reader.readAsText(file);
+    setUploadError('');
+    try {
+      await saveWordTemplate(file);
+    } catch (error) {
+      console.error(error);
+      setUploadError('Word shablonini o‘qib bo‘lmadi. Fayl .docx ekanini tekshiring.');
+    }
   };
 
   const exportDataJson = () => {
@@ -84,22 +109,22 @@ export const SettingsView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       <div>
         <h1 className="text-xl md:text-2xl font-black text-slate-900">Tizim Sozlamalari & Baza Nazorati</h1>
-        <p className="text-xs text-slate-500">21-ASR CRM konfiguratsiyasi, Baza skaneri va xavfsizlik parametrlari</p>
+        <p className="text-xs text-slate-600">21-ASR CRM konfiguratsiyasi, Baza skaneri va xavfsizlik parametrlari</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Database Health & Scanner Card */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4 md:col-span-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-700 text-emerald-600 flex items-center justify-center">
                 <Activity className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                   Baza Diagnostikasi & Audit Skaneri
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-600">
                   STIRlar, hisobotlar, 1C, to'lovlar va bog'lanishlar yaxlitligi tahlili
                 </p>
               </div>
@@ -111,9 +136,9 @@ export const SettingsView: React.FC = () => {
                   runDatabaseScan();
                   setIsScannerModalOpen(true);
                 }}
-                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <Activity className="w-3.5 h-3.5 text-emerald-400" /> Skanerni Ochish
+                <Activity className="w-3.5 h-3.5 text-emerald-600" /> Skanerni Ochish
               </button>
               <button
                 onClick={handleFix}
@@ -125,20 +150,20 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">Baza Salomatligi</div>
+            <div className="p-3 bg-white rounded-xl border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-600 uppercase">Baza Salomatligi</div>
               <div className="text-xl font-black text-emerald-600">{scanResult?.healthScore ?? 100}%</div>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">Jami Yozuvlar</div>
+            <div className="p-3 bg-white rounded-xl border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-600 uppercase">Jami Yozuvlar</div>
               <div className="text-xl font-black text-slate-900">{scanResult?.totalRecords ?? 0} ta</div>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">Xatolar</div>
+            <div className="p-3 bg-white rounded-xl border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-600 uppercase">Xatolar</div>
               <div className="text-xl font-black text-rose-600">{scanResult?.errorCount ?? 0} ta</div>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">Ogohlantirishlar</div>
+            <div className="p-3 bg-white rounded-xl border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-600 uppercase">Ogohlantirishlar</div>
               <div className="text-xl font-black text-amber-600">{scanResult?.warningCount ?? 0} ta</div>
             </div>
           </div>
@@ -159,7 +184,7 @@ export const SettingsView: React.FC = () => {
                 const found = periods.find(p => p.id === e.target.value);
                 if (found) setCurrentPeriod(found);
               }}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-800"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900"
             >
               {periods.map(p => (
                 <option key={p.id} value={p.id}>{p.name} ({p.isCurrent ? "Joriy" : "Tarixiy"})</option>
@@ -174,12 +199,12 @@ export const SettingsView: React.FC = () => {
             <Download className="w-4 h-4 text-blue-600" />
             Baza Zaxira Nusxasi (Backup)
           </h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <p className="text-xs text-slate-600 leading-relaxed">
             Barcha mijozlar, hisobotlar va to'lovlar ma'lumotlarini JSON formatida yuklab olish.
           </p>
           <button
             onClick={exportDataJson}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4 text-blue-600" /> JSON Backup Yuklab Olish
           </button>
@@ -191,10 +216,10 @@ export const SettingsView: React.FC = () => {
             <Smartphone className="w-4 h-4 text-blue-600" />
             Telegram Bot Integratsiyasi
           </h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <p className="text-xs text-slate-600 leading-relaxed">
             Soliq hisobotlari va eslatmalarni buxgalterlar Telegram profiliga avtomatik yuborish ulanishi faol.
           </p>
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-mono font-bold">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 font-mono font-bold">
             @Asr21_Accounting_Bot (Ulangan)
           </div>
         </div>
@@ -206,36 +231,67 @@ export const SettingsView: React.FC = () => {
               <FileText className="w-4 h-4 text-rose-600" />
               Qarzdorlik Akti Shabloni
             </h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              SUPER_ADMIN tomonidan qarzdorlik akti shablonini sozlash. Quyidagi o'zgaruvchilardan foydalaning: {`{korxona_nomi}`}, {`{stir}`}, {`{manzil}`}, {`{qarz_miqdori}`}, {`{oylik_tolov}`}, {`{tolangan}`}, {`{sana}`}
+            <p className="text-xs text-slate-600 leading-relaxed">
+              To'lovlar bo'limida qarzi bor mijoz uchun «Akt» bosilganda, tizim <strong>tayyor standart shablon</strong> asosida
+              (tashkilot rekvizitlari, jadval va imzo joylari bilan) Word hujjatini avtomatik to'ldirib, yuklab beradi — hech narsa yuklash shart emas.
             </p>
-            
-            <div className="flex gap-2">
-              <label className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2">
-                <Upload className="w-4 h-4" />
-                Word faylni yuklash (.doc, .docx)
-                <input
-                  type="file"
-                  accept=".doc,.docx,.txt"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Agar boshqacha ko'rinishdagi shablon kerak bo'lsa, o'z Word faylingizni (.docx) yuklashingiz mumkin — shunda tizim standart shablon o'rniga shu faylni ishlatadi.
+              O'zgaruvchilar: {`{korxona_nomi}`}, {`{stir}`}, {`{manzil}`}, {`{hisobot_turi}`}, {`{davri}`}, {`{qarz_miqdori}`}, {`{oylik_tolov}`}, {`{tolangan}`}, {`{izoh}`}, {`{sana}`}.
+              {' '}Direktor, Bosh buxgalter va tashkilot rekvizitlari (nom, manzil, STIR) — Word shablonining o'ziga to'g'ridan-to'g'ri statik matn sifatida yozing, ular har bir mijoz uchun o'zgarmaydi.
+            </p>
 
-            <textarea
-              value={templateInput}
-              onChange={(e) => setTemplateInput(e.target.value)}
-              placeholder="Qarzdorlik akti shablonini kiriting..."
-              className="w-full h-32 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-emerald-600 resize-none"
-            />
-            <button
-              onClick={handleSaveTemplate}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-2"
+            <label
+              className="flex flex-col items-center justify-center gap-2 px-4 py-8 bg-white hover:bg-slate-100 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl cursor-pointer transition-colors"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files?.[0];
+                if (!file) return;
+                setUploadError('');
+                try {
+                  await saveWordTemplate(file);
+                } catch (error) {
+                  console.error(error);
+                  setUploadError('Word shablonini o‘qib bo‘lmadi. Fayl .docx ekanini tekshiring.');
+                }
+              }}
             >
-              <FileText className="w-4 h-4" />
-              Shablonni Saqlash
-            </button>
+              <Upload className="w-6 h-6 text-emerald-600" />
+              <span className="text-slate-900 font-bold text-sm">Word faylni tanlang yoki shu yerga tashlang</span>
+              <span className="text-[11px] text-slate-600">Faqat Word hujjati: .docx</span>
+              <input
+                type="file"
+                accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+
+            {debtActTemplateFile ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="text-[11px] text-emerald-700 font-bold">
+                  Faol shablon: {debtActTemplateFile.fileName} (o'zingiz yuklagan Word fayli)
+                </div>
+                <button
+                  onClick={handleResetToDefault}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-300 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Standart shablonga qaytarish
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 font-bold">
+                Faol shablon: Tizimning standart AKT shabloni ishlatilmoqda.
+              </div>
+            )}
+            {uploadError && (
+              <div className="text-[11px] text-rose-700 font-bold">{uploadError}</div>
+            )}
           </div>
         )}
       </div>

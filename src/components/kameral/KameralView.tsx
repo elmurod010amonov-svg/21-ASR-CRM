@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
-import { FileSearch, Search, AlertTriangle, CheckCircle2, Clock, Building2, Plus, X } from 'lucide-react';
+import { FileSearch, Search, AlertTriangle, CheckCircle2, Clock, Building2, Plus, X, FileCheck, FileText, Image as ImageIcon, Eye } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { KameralStatus } from '../../types';
+import { KameralAudit, KameralStatus, ProofAttachment } from '../../types';
+import { ProofUploadModal } from '../common/ProofUploadModal';
+import { ProofViewerModal } from '../common/ProofViewerModal';
 
 export const KameralView: React.FC = () => {
   const { kameral, updateKameralStatus, openClientCard, addKameral, clients } = useCRM();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Mandatory proof modals state
+  const [kameralForProofUpload, setKameralForProofUpload] = useState<KameralAudit | null>(null);
+  const [viewingProof, setViewingProof] = useState<{ proof: ProofAttachment; title: string } | null>(null);
+
+  const handleProofConfirmed = (proof: ProofAttachment, notes?: string) => {
+    if (!kameralForProofUpload) return;
+    updateKameralStatus(kameralForProofUpload.id, 'YOPILDI', notes, proof);
+    setKameralForProofUpload(null);
+  };
 
   // New Kameral state
   const [clientId, setClientId] = useState(clients[0]?.id || '');
@@ -68,10 +80,18 @@ export const KameralView: React.FC = () => {
         </button>
       </div>
 
+      {/* Mandatory Proof notice */}
+      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-950">
+        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+        <span>
+          <strong>Nazorat qoidasi:</strong> Kameral tekshiruvni <strong>"Yopildi"</strong> deb yakunlash uchun tushuntirish javobi yoki hujjat (JPG/PNG/PDF) yuklanishi majburiy.
+        </span>
+      </div>
+
       {/* Filter and Search */}
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
           <input
             type="text"
             placeholder="Mijoz nomi, STIR yoki tekshiruv turi..."
@@ -97,7 +117,7 @@ export const KameralView: React.FC = () => {
       {/* Kameral Cards List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
+          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-xs text-slate-600">
             Kameral tekshiruvlar topilmadi.
           </div>
         ) : (
@@ -127,10 +147,11 @@ export const KameralView: React.FC = () => {
                 <div className="flex items-center gap-2 shrink-0">
                   {k.status !== 'YOPILDI' && (
                     <button
-                      onClick={() => updateKameralStatus(k.id, 'YOPILDI')}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
+                      onClick={() => setKameralForProofUpload(k)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
+                      title="Tushuntirish javobi yoki hujjatni JPG/PDF isbot yuklab tasdiqlash"
                     >
-                      Yopildi deb belgilash ✓
+                      <FileCheck className="w-3.5 h-3.5" /> Yopildi deb belgilash (Isbot yuklash) ✓
                     </button>
                   )}
                   {k.status === 'OCHIQ' && (
@@ -147,6 +168,40 @@ export const KameralView: React.FC = () => {
               <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100 text-xs text-slate-800 leading-relaxed font-medium">
                 {k.summary}
               </div>
+
+              {/* Proof Card (If kameral has been closed with proof) */}
+              {k.proofAttachment && (
+                <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center shrink-0">
+                      {k.proofAttachment.type?.includes('pdf') ? (
+                        <FileText className="w-4 h-4 text-rose-600" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-emerald-700" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-emerald-950 truncate flex items-center gap-1.5">
+                        <span>Isbot: {k.proofAttachment.name}</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-700 mt-0.5">
+                        Yuklagan: {k.proofAttachment.uploadedBy} &bull; {k.proofAttachment.uploadedAt}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewingProof({
+                      proof: k.proofAttachment!,
+                      title: `${k.clientName} - ${k.auditType}`
+                    })}
+                    className="px-3 py-1.5 bg-white hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-emerald-700" /> Isbotni ko'rish
+                  </button>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
                 <div className="flex flex-wrap items-center gap-4">
@@ -165,13 +220,36 @@ export const KameralView: React.FC = () => {
         )}
       </div>
 
+      {/* MANDATORY PROOF UPLOAD MODAL */}
+      <ProofUploadModal
+        isOpen={!!kameralForProofUpload}
+        title="Kameral tekshiruv yopilganligini tasdiqlash"
+        subtitle="Soliq idorasiga yuborilgan tushuntirish yoki yopilganlik xabarnomasini (JPG/PDF) yuklang"
+        targetName={kameralForProofUpload?.auditType || ''}
+        clientInfo={kameralForProofUpload ? {
+          name: kameralForProofUpload.clientName,
+          stir: kameralForProofUpload.stir
+        } : undefined}
+        actionLabel="Isbotni biriktirish va Yopildi deb belgilash ✓"
+        onClose={() => setKameralForProofUpload(null)}
+        onConfirm={handleProofConfirmed}
+      />
+
+      {/* PROOF VIEWER MODAL */}
+      <ProofViewerModal
+        isOpen={!!viewingProof}
+        proof={viewingProof?.proof}
+        targetTitle={viewingProof?.title}
+        onClose={() => setViewingProof(null)}
+      />
+
       {/* Add Kameral Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-slate-900 text-sm">Yangi Kameral Tekshiruv Qayd Etish</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-600 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
