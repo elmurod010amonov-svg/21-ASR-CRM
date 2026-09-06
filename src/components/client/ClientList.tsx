@@ -90,6 +90,7 @@ export const ClientList: React.FC = () => {
     setStirError('');
 
     const assignedEmp = employees.find(e => e.id === accountantId);
+    const parsedFee = parseInt(monthlyFee.replace(/\D/g, ''), 10);
 
     addClient({
       name,
@@ -101,7 +102,7 @@ export const ClientList: React.FC = () => {
       phone,
       address,
       contractDate: new Date().toISOString().split('T')[0],
-      monthlyFee: parseInt(monthlyFee.replace(/\D/g, ''), 10) || 1500000,
+      monthlyFee: isNaN(parsedFee) ? 1500000 : parsedFee,
       notes,
       tags: [type, taxType],
       assignedReportTypes: selectedAddReports,

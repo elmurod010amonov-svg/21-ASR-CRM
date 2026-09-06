@@ -803,6 +803,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIssues(prev => prev.map(i => i.clientId === id ? { ...i, clientName: newName, stir: newStir } : i));
       }
     }
+
+    // Oylik to'lov summasi o'zgartirilsa — qarzdorlikni ham shu yangi summaga
+    // qarab qayta hisoblaymiz (aks holda to'lov/qarz eski tarif bo'yicha qolib ketardi)
+    if (updates.monthlyFee !== undefined) {
+      const newFee = updates.monthlyFee;
+      setPayments(prev => prev.map(p => {
+        if (p.clientId !== id) return p;
+        const newDebt = Math.max(0, newFee - p.paidAmount);
+        const newStatus = newDebt === 0 ? 'TOLANGAN' : p.paidAmount > 0 ? 'QISMAN' : 'TOLANMAGAN';
+        return { ...p, monthlyFee: newFee, debtAmount: newDebt, status: newStatus };
+      }));
+    }
   };
 
   const deleteClient = (id: string) => {
