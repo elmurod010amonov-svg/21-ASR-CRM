@@ -4,12 +4,45 @@ import { useCRM } from '../../context/CRMContext';
 import { ClientType, TaxType } from '../../types';
 import * as XLSX from 'xlsx';
 
+// Sarlavha (header) ustunini aniqlash uchun barcha maydonlarning kalit
+// so'zlari — haqiqiy fayllarda ko'p uchraydigan Uzbek/rus/lotin variantlari
+// bilan (masalan JSHSHR, Hisobot, To'lov, Narx).
+const NAME_PATTERNS = [/name/i, /korxona/i, /company|firma/i, /nomi/i];
+const STIR_PATTERNS = [/stir/i, /jshshr/i, /jshr/i, /tin/i, /inn/i, /ident/i];
+const TYPE_PATTERNS = [/\btur/i, /type/i];
+const TAX_PATTERNS = [/soliq/i, /tax/i, /qqs/i, /foyda/i, /hisobot/i];
+const ACCOUNTANT_PATTERNS = [/buxgalter/i, /accountant/i, /masul/i, /responsible/i, /direktor/i];
+const PHONE_PATTERNS = [/telefon/i, /phone/i, /\btel\b/i];
+const FEE_PATTERNS = [/oylik/i, /monthly/i, /summa/i, /fee/i, /to.?lov/i, /narx/i, /kelishilgan/i];
+const ADDRESS_PATTERNS = [/manzil/i, /address/i];
+
+const ALL_HEADER_PATTERNS = [
+  ...NAME_PATTERNS, ...STIR_PATTERNS, ...TYPE_PATTERNS, ...TAX_PATTERNS,
+  ...ACCOUNTANT_PATTERNS, ...PHONE_PATTERNS, ...FEE_PATTERNS, ...ADDRESS_PATTERNS,
+];
+
+const normalizeClientType = (raw: string): ClientType => {
+  const v = raw.trim().toUpperCase();
+  return v.includes('YATT') || v.includes('ЯТТ') ? 'YATT' : 'YURIDIK';
+};
+
+const normalizeTaxType = (raw: string): TaxType => {
+  const v = raw.trim().toUpperCase();
+  if (v.includes('QQS') || v.includes('ҚҚС')) return 'QQS';
+  if (v.includes('FOYDA')) return 'FOYDA';
+  if (v.includes('QAT')) return 'YATT_QATQIY';
+  return 'AYLANMA';
+};
+
 export const ExcelImportView: React.FC = () => {
   const { clients, addClient, employees, setActiveTab, importClientsFromExcel } = useCRM();
 
   const [previewRows, setPreviewRows] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
 
   const [importedSuccess, setImportedSuccess] = useState(false);
 
@@ -44,51 +77,126 @@ export const ExcelImportView: React.FC = () => {
     return undefined;
   };
 
-  const handleFile = async (file: File | null) => {
+  // Ba'zi fayllarda jadval sarlavhasidan oldin sarlavha/nom qatori (masalan
+  // "Yuridik korxonalar") bo'ladi — shu sababli har doim 1-qatorni sarlavha
+  // deb olish xato. Shuning uchun birinchi bir necha qatorni tekshirib,
+  // tanish kalit so'zlar (Nomi, STIR, JSHSHR, Hisobot, To'lov va h.k.) eng
+  // ko'p uchragan qatorni haqiqiy sarlavha deb tanlaymiz.
+  const findHeaderRowIndex = (rows: any[][]): number => {
+    let bestIdx = 0;
+    let bestScore = -1;
+    const scanLimit = Math.min(rows.length, 10);
+    for (let i = 0; i < scanLimit; i++) {
+      const row = rows[i] || [];
+      const score = row.reduce((acc: number, cell: any) => {
+        const text = String(cell ?? '').trim();
+        if (!text) return acc;
+        return acc + (ALL_HEADER_PATTERNS.some(p => p.test(text)) ? 1 : 0);
+      }, 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  };
+
+  const parseSheet = (wb: XLSX.WorkBook, sheetName: string) => {
     setParseError(null);
-    if (!file) return;
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheet = wb.Sheets[sheetName];
     if (!sheet) {
       setParseError('Jadval topilmadi');
+      setPreviewRows([]);
       return;
     }
 
-    const raw = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
-    if (!Array.isArray(raw) || raw.length === 0) {
+    const aoa = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' }) as any[][];
+    if (!Array.isArray(aoa) || aoa.length === 0) {
       setParseError('Jadval bo‘sh yoki noto‘g‘ri format');
+      setPreviewRows([]);
       return;
     }
+
+    const headerRowIdx = findHeaderRowIndex(aoa);
+    const headerRow = (aoa[headerRowIdx] || []).map((h: any) => String(h ?? '').trim());
+    const dataRows = aoa
+      .slice(headerRowIdx + 1)
+      .filter(row => row.some((cell: any) => String(cell ?? '').trim() !== ''));
+
+    if (dataRows.length === 0) {
+      setParseError("Ustunlar topildi, lekin ma'lumot qatorlari yo'q");
+      setPreviewRows([]);
+      return;
+    }
+
+    const raw = dataRows.map(row => {
+      const obj: Record<string, any> = {};
+      headerRow.forEach((h, idx) => {
+        obj[h || `col_${idx}`] = row[idx] !== undefined ? row[idx] : '';
+      });
+      return obj;
+    });
 
     const keys = Object.keys(raw[0]);
-    // Header detection patterns
-    const nameKey = detectKey(keys, [/name/i, /korxona/i, /company|firma/i, /nomi/i]);
-    const stirKey = detectKey(keys, [/stir/i, /tin/i, /inn/i, /ident/i]);
-    const typeKey = detectKey(keys, [/tur/i, /type/i]);
-    const taxKey = detectKey(keys, [/soliq/i, /tax/i, /qqs/i, /foyda/i]);
-    const accKey = detectKey(keys, [/buxgalter/i, /accountant/i, /masul/i, /responsible/i]);
-    const phoneKey = detectKey(keys, [/telefon/i, /phone/i, /tel/i]);
-    const feeKey = detectKey(keys, [/oylik/i, /monthly/i, /summa/i, /fee/i]);
-    const addressKey = detectKey(keys, [/manzil/i, /address/i]);
+    const nameKey = detectKey(keys, NAME_PATTERNS);
+    const stirKey = detectKey(keys, STIR_PATTERNS);
+    const typeKey = detectKey(keys, TYPE_PATTERNS);
+    const taxKey = detectKey(keys, TAX_PATTERNS);
+    const accKey = detectKey(keys, ACCOUNTANT_PATTERNS);
+    const phoneKey = detectKey(keys, PHONE_PATTERNS);
+    const feeKey = detectKey(keys, FEE_PATTERNS);
+    const addressKey = detectKey(keys, ADDRESS_PATTERNS);
 
     const mapped = raw.map((row: any) => {
       const get = (k?: string) => (k ? row[k] : undefined);
-      const feeRaw = get(feeKey) || get('monthlyFee') || get('amount') || '';
+      const feeRaw = get(feeKey) || '';
       const feeNum = typeof feeRaw === 'number' ? feeRaw : Number(String(feeRaw).replace(/[^0-9]/g, '')) || 0;
+      const stirVal = String(get(stirKey) || '').replace(/\D/g, '');
+      // "Turi" ustuni topilmasa — STIR uzunligidan aniqlaymiz: 14 xonali
+      // JSHSHR = YaTT, 9 xonali STIR = Yuridik shaxs.
+      const typeVal = get(typeKey);
+      const type: ClientType = typeVal
+        ? normalizeClientType(String(typeVal))
+        : (stirVal.length === 14 ? 'YATT' : 'YURIDIK');
+      const taxVal = get(taxKey);
+      const taxType: TaxType = taxVal ? normalizeTaxType(String(taxVal)) : 'AYLANMA';
+
       return {
-        name: get(nameKey) || get('A') || get('Korxona') || "Noma'lum",
-        stir: String(get(stirKey) || get('B') || ''),
-        type: (get(typeKey) || 'YURIDIK') as ClientType,
-        taxType: (get(taxKey) || 'AYLANMA') as TaxType,
-        accountantName: get(accKey) || '',
-        phone: get(phoneKey) || '',
+        name: String(get(nameKey) || "Noma'lum").trim(),
+        stir: stirVal,
+        type,
+        taxType,
+        accountantName: String(get(accKey) || '').trim(),
+        phone: String(get(phoneKey) || '').trim(),
         monthlyFee: feeNum,
-        address: get(addressKey) || '',
+        address: String(get(addressKey) || '').trim(),
       };
     });
 
     setPreviewRows(mapped);
+  };
+
+  const handleFile = async (file: File | null) => {
+    setParseError(null);
+    if (!file) return;
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    if (!wb.SheetNames.length) {
+      setParseError('Jadval topilmadi');
+      return;
+    }
+    setWorkbook(wb);
+    setSheetNames(wb.SheetNames);
+    const firstSheet = wb.SheetNames[0];
+    setSelectedSheet(firstSheet);
+    parseSheet(wb, firstSheet);
+  };
+
+  const handleSheetChange = (sheetName: string) => {
+    setSelectedSheet(sheetName);
+    if (workbook) {
+      parseSheet(workbook, sheetName);
+    }
   };
 
   const onChooseFile = () => {
@@ -132,6 +240,21 @@ export const ExcelImportView: React.FC = () => {
           />
           {parseError && <span className="text-rose-600 text-xs font-semibold">{parseError}</span>}
         </div>
+
+        {sheetNames.length > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <label className="text-[11px] font-bold text-slate-600">Varaq (sheet):</label>
+            <select
+              value={selectedSheet}
+              onChange={(e) => handleSheetChange(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
+            >
+              {sheetNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Preview Table */}
