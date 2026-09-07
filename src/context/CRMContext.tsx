@@ -1906,11 +1906,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recordPayment = (clientId: string, amount: number, notes?: string) => {
-    if (currentUser.role !== 'KASSIR') {
+    if (currentUser.role !== 'KASSIR' && currentUser.role !== 'SUPER_ADMIN') {
       addNotification({
         type: 'SYSTEM',
         title: 'Ruxsat yo\'q',
-        message: 'Faqat kassir to\'lov summasini qo\'shishi yoki o\'zgartirishi mumkin.',
+        message: 'Faqat kassir yoki Super Admin to\'lov summasini qo\'shishi yoki o\'zgartirishi mumkin.',
         linkModule: 'To\'lovlar',
       });
       return;
@@ -1950,11 +1950,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updatePayment = (id: string, updates: Partial<PaymentRecord>) => {
-    if (currentUser.role !== 'KASSIR') {
+    if (currentUser.role !== 'KASSIR' && currentUser.role !== 'SUPER_ADMIN') {
       addNotification({
         type: 'SYSTEM',
         title: 'Ruxsat yo\'q',
-        message: 'Faqat kassir to\'lov summasini o\'zgartirishi mumkin.',
+        message: 'Faqat kassir yoki Super Admin to\'lov summasini o\'zgartirishi mumkin.',
         linkModule: 'To\'lovlar',
       });
       return;

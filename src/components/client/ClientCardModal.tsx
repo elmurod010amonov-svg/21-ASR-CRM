@@ -106,7 +106,7 @@ export const ClientCardModal: React.FC = () => {
     });
   }, [client?.id]);
 
-  const canManagePayments = currentUser.role === 'KASSIR';
+  const canManagePayments = currentUser.role === 'KASSIR' || currentUser.role === 'SUPER_ADMIN';
   const canEditClient = ['SUPER_ADMIN', 'DIREKTOR', 'BUXGALTER', 'NAZORATCHI'].includes(currentUser.role);
 
   if (!selectedClientIdForModal || !client) return null;
@@ -170,7 +170,7 @@ export const ClientCardModal: React.FC = () => {
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManagePayments) {
-      alert('Faqat kassir to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
+      alert('Faqat kassir yoki Super Admin to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
       return;
     }
     const amount = parseInt(paymentAmountInput.replace(/\D/g, ''), 10);

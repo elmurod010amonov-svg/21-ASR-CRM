@@ -7,7 +7,7 @@ import { buildDebtorsListDocx, downloadBlob, DebtorRow } from '../../utils/debtA
 export const PaymentsView: React.FC = () => {
   const { payments, clients, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct, logAudit } = useCRM();
   const canGenerateAct = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR';
-  const canManagePayments = currentUser.role === 'KASSIR';
+  const canManagePayments = currentUser.role === 'KASSIR' || currentUser.role === 'SUPER_ADMIN';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedClientForPay, setSelectedClientForPay] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export const PaymentsView: React.FC = () => {
                       <button
                         onClick={() => {
                           if (!canManagePayments) {
-                            alert('Faqat kassir to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
+                            alert('Faqat kassir yoki Super Admin to\'lov summasini qo\'shishi va o\'zgartirishi mumkin.');
                             return;
                           }
                           setSelectedClientForPay(item.clientId);
