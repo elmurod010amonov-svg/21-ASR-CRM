@@ -25,14 +25,12 @@ import {
   Paperclip,
   FileText,
   AlertTriangle,
-  Sliders,
   Settings,
   Download
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { ReportStatus, ReportType, TaxReport, Client, ProofAttachment } from '../../types';
 import { ProofViewerModal } from '../common/ProofViewerModal';
-import { ClientReportFormsConfigModal } from '../common/ClientReportFormsConfigModal';
 
 export const ReportsView: React.FC = () => {
   const {
@@ -46,8 +44,6 @@ export const ReportsView: React.FC = () => {
     canMarkReportSubmitted,
     openClientCard,
     currentUser,
-    setClientReportTypes,
-    bulkSetClientReportTypes,
     addNotification,
     logAudit
   } = useCRM();
@@ -65,10 +61,6 @@ export const ReportsView: React.FC = () => {
 
   // Client Details Modal state
   const [selectedClientModalId, setSelectedClientModalId] = useState<string | null>(null);
-
-  // Admin Config Report Forms Modal state
-  const [clientForConfigForms, setClientForConfigForms] = useState<Client | null>(null);
-  const [isGlobalConfigOpen, setIsGlobalConfigOpen] = useState(false);
 
   // Proof Viewer State
   const [selectedProofForView, setSelectedProofForView] = useState<{
@@ -287,17 +279,6 @@ export const ReportsView: React.FC = () => {
           >
             <Download className="w-3.5 h-3.5" />
             <span>Topshirmaganlar Ro'yxati (Excel)</span>
-          </button>
-
-          {/* Admin Tax Report Forms Config Button */}
-          <button
-            type="button"
-            onClick={() => setIsGlobalConfigOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-xs font-bold shadow-xs cursor-pointer transition-colors"
-            title="Admin tomonidan mijozlar uchun soliq shakllarini (AYLANMA, QQS, FOYDA, JSHDS, INPS...) belgilash"
-          >
-            <Sliders className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Hisobot Shakllarini Belgilash (Admin)</span>
           </button>
 
           {/* View mode toggle */}
@@ -642,17 +623,6 @@ export const ReportsView: React.FC = () => {
                           {/* Actions */}
                           <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="inline-flex items-center gap-1.5">
-                              {/* Admin Report Forms Config for this Client */}
-                              <button
-                                type="button"
-                                onClick={() => setClientForConfigForms(client)}
-                                className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-                                title="Admin: Ushbu mijoz hisobot shakllarini sozlash"
-                              >
-                                <Sliders className="w-3 h-3 text-slate-700" />
-                                <span>Shakllar</span>
-                              </button>
-
                               {!allSubmitted && totalCount > 0 && (
                                 <button
                                   type="button"
@@ -693,13 +663,6 @@ export const ReportsView: React.FC = () => {
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 text-xs">
-                                    <button
-                                      type="button"
-                                      onClick={() => setClientForConfigForms(client)}
-                                      className="px-2.5 py-1 rounded-md bg-indigo-900/50 hover:bg-indigo-900/70 text-indigo-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer border border-indigo-700 transition-colors"
-                                    >
-                                      <Sliders className="w-3.5 h-3.5 text-indigo-600" /> Shakllarni tahrirlash (Admin)
-                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => canSubmit && updateAllClientTaxReports(client.id, 'TOPSHIRILDI')}
@@ -1029,16 +992,6 @@ export const ReportsView: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      const c = selectedModalClientGroup.client;
-                      setSelectedClientModalId(null);
-                      setClientForConfigForms(c);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs cursor-pointer flex items-center gap-1"
-                  >
-                    <Sliders className="w-3.5 h-3.5 text-indigo-600" /> Shakllarni Sozlash (Admin)
-                  </button>
-                  <button
-                    onClick={() => {
                       if (canMarkReportSubmitted(selectedModalClientGroup.client.id)) {
                         updateAllClientTaxReports(selectedModalClientGroup.client.id, 'TOPSHIRILDI');
                       }
@@ -1158,27 +1111,6 @@ export const ReportsView: React.FC = () => {
           onClose={() => setSelectedProofForView(null)}
         />
       )}
-
-      {/* ADMIN CLIENT REPORT FORMS CONFIGURATION MODAL */}
-      <ClientReportFormsConfigModal
-        isOpen={isGlobalConfigOpen || !!clientForConfigForms}
-        onClose={() => {
-          setIsGlobalConfigOpen(false);
-          setClientForConfigForms(null);
-        }}
-        client={clientForConfigForms}
-        clientsList={clients}
-        currentAssignedReports={clientForConfigForms?.assignedReportTypes}
-        onSave={(reportTypes, targetClientIds) => {
-          if (targetClientIds && targetClientIds.length > 1) {
-            bulkSetClientReportTypes(targetClientIds, reportTypes);
-          } else if (targetClientIds && targetClientIds[0]) {
-            setClientReportTypes(targetClientIds[0], reportTypes);
-          } else if (clientForConfigForms) {
-            setClientReportTypes(clientForConfigForms.id, reportTypes);
-          }
-        }}
-      />
     </div>
   );
 };

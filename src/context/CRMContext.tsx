@@ -221,6 +221,35 @@ const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V3';
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const SHARED_DATA_POLL_INTERVAL_MS = 5000;
 
+// Yangi chat xabari yoki bildirishnoma kelganda ishlatiladigan qisqa
+// ovozli signal (beep) — hech qanday tashqi fayl kerak emas.
+function playAlertBeep() {
+  try {
+    const AudioCtx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const playTone = (freq: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    const now = ctx.currentTime;
+    playTone(880, now, 0.16);
+    playTone(1180, now + 0.16, 0.2);
+    setTimeout(() => ctx.close(), 600);
+  } catch (e) {
+    console.error('Bildirishnoma ovozini chalib bo\'lmadi:', e);
+  }
+}
+
 // Birinchi marta hydratsiya qilinganda — agar SERVER bo'sh bo'lsa-yu, shu
 // brauzerning LOKAL keshida (localStorage'da) haqiqiy ma'lumot bo'lsa, buni
 // "hali hech narsa yo'q" deb hisoblab lokal ma'lumotni bo'sh server holati
@@ -819,35 +848,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const relevantNew = newMessages.filter(m => {
       if (m.senderId === currentUser.id) return false;
       const room = chatRooms.find(r => r.id === m.roomId);
-      return room ? room.memberIds.includes(currentUser.id) : false;
+      if (!room) return false;
+      // Umumiy jamoa chatida memberIds ro'yxati ba'zi xodimlar uchun
+      // to'liq bo'lmasligi mumkin (masalan eski import/migratsiya
+      // qoldig'i) — bu xona "hammaga umumiy" ekanligini bildiradi, shuning
+      // uchun bunday xonalarda memberIds tekshiruvi o'tkazib yuboriladi.
+      if (room.isGeneralStaffGroup) return true;
+      return room.memberIds.includes(currentUser.id);
     });
     if (relevantNew.length === 0) return;
 
-    try {
-      const AudioCtx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const playTone = (freq: number, startTime: number, duration: number) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.0001, startTime);
-          gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.01);
-          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + duration);
-        };
-        const now = ctx.currentTime;
-        playTone(880, now, 0.16);
-        playTone(1180, now + 0.16, 0.2);
-        setTimeout(() => ctx.close(), 600);
-      }
-    } catch (e) {
-      console.error('Bildirishnoma ovozini chalib bo\'lmadi:', e);
-    }
+    playAlertBeep();
 
     const last = relevantNew[relevantNew.length - 1];
     try {
@@ -867,6 +878,29 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Brauzer bildirishnomasi ko\'rsatilmadi:', e);
     }
   }, [chatMessages, chatRooms, currentUser.id]);
+
+  // Chatdan tashqari, umumiy bildirishnomalar (masalan "To'lov qabul
+  // qilindi", yangi vazifa va h.k.) kelganda ham ovozli signal beramiz —
+  // avval faqat chat xabarlari uchun ishlar edi, boshqa bildirishnomalar
+  // sizsiz (ovozsiz) kelib qolardi.
+  const knownNotificationIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const currentIds = new Set(notifications.map(n => n.id));
+    const previousIds = knownNotificationIdsRef.current;
+    knownNotificationIdsRef.current = currentIds;
+    if (previousIds === null) return; // birinchi yuklanish — signal bermaymiz
+
+    if (currentUser.id === 'guest') return;
+    const newOnes = notifications.filter(n => !previousIds.has(n.id));
+    if (newOnes.length === 0) return;
+
+    // recipientIds berilgan bo'lsa — faqat shu ro'yxatdagi xodimga signal
+    // beramiz; berilmagan bo'lsa (aksariyat holat) — hammaga umumiy.
+    const relevant = newOnes.filter(n => !n.recipientIds || n.recipientIds.length === 0 || n.recipientIds.includes(currentUser.id));
+    if (relevant.length === 0) return;
+
+    playAlertBeep();
+  }, [notifications, currentUser.id]);
 
   // Ushbu 19 ta umumiy holatdan BIRI o'zgarganda ham — pollingni bir necha
   // soniyaga "jim" qilamiz (localEditGuardUntil), toki debounce+PUT to'liq
