@@ -14,7 +14,7 @@ process.env.PORT = process.env.PORT || "3000";
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
-import { connectToMongo } from './src/db/mongoClient';
+import { connectToMongo, resetMongoConnection } from './src/db/mongoClient';
 import {
   INITIAL_CLIENTS,
   INITIAL_EMPLOYEES,
@@ -116,6 +116,7 @@ app.get('/api/db-test', async (req: Request, res: Response) => {
     return res.json({ ok: true, db: db.databaseName, ping: result });
   } catch (error: any) {
     console.error('DB test error:', error);
+    resetMongoConnection();
     return res.status(500).json({ ok: false, error: error?.message || String(error) });
   }
 });
@@ -182,6 +183,7 @@ function registerSharedCollectionRoutes(name: string) {
       return res.json(docs);
     } catch (error: any) {
       console.error(`GET /api/${name} error:`, error);
+      resetMongoConnection();
       return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
     }
   });
@@ -196,6 +198,7 @@ function registerSharedCollectionRoutes(name: string) {
       return res.json({ ok: true, count: docs.length });
     } catch (error: any) {
       console.error(`PUT /api/${name} error:`, error);
+      resetMongoConnection();
       return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
     }
   });
@@ -212,6 +215,7 @@ app.get('/api/debtActTemplate', async (req: Request, res: Response) => {
     return res.json(doc || null);
   } catch (error: any) {
     console.error('GET /api/debtActTemplate error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -233,6 +237,7 @@ app.put('/api/debtActTemplate', async (req: Request, res: Response) => {
     return res.json({ ok: true });
   } catch (error: any) {
     console.error('PUT /api/debtActTemplate error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -244,6 +249,7 @@ app.get('/api/clients', async (req: Request, res: Response) => {
     return res.json(clients);
   } catch (error: any) {
     console.error('GET /api/clients error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -258,6 +264,7 @@ app.put('/api/clients', async (req: Request, res: Response) => {
     return res.json({ ok: true, count: clients.length });
   } catch (error: any) {
     console.error('PUT /api/clients error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -269,6 +276,7 @@ app.get('/api/employees', async (req: Request, res: Response) => {
     return res.json(employees);
   } catch (error: any) {
     console.error('GET /api/employees error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -283,6 +291,7 @@ app.put('/api/employees', async (req: Request, res: Response) => {
     return res.json({ ok: true, count: employees.length });
   } catch (error: any) {
     console.error('PUT /api/employees error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
   }
 });
@@ -324,6 +333,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     return res.json(target);
   } catch (error: any) {
     console.error('Login error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Kirish xizmati vaqtincha ishlamayapti' });
   }
 });
@@ -344,6 +354,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     return res.json({ ok: true });
   } catch (error: any) {
     console.error('Register error:', error);
+    resetMongoConnection();
     return res.status(503).json({ error: 'Parolni saqlashda xatolik' });
   }
 });
