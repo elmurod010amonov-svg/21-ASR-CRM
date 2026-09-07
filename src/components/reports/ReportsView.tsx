@@ -167,9 +167,11 @@ export const ReportsView: React.FC = () => {
         matchesStatus = group.pendingCount > 0;
       }
 
-      const matchesAccountant = accountantFilter === 'ALL' || group.client.accountantId === accountantFilter;
-      
-      const matchesTaxType = taxTypeFilter === 'ALL' || 
+      // Statik biriktirilgan buxgalter emas — hisobotni haqiqatan kim
+      // topshirgani bo'yicha filtrlaymiz.
+      const matchesAccountant = accountantFilter === 'ALL' || group.reports.some(r => r.submittedBy === accountantFilter);
+
+      const matchesTaxType = taxTypeFilter === 'ALL' ||
         group.reports.some(r => r.reportType === taxTypeFilter && r.status !== 'TALAB_QILINMAYDI');
 
       return matchesSearch && matchesStatus && matchesAccountant && matchesTaxType;
@@ -186,7 +188,7 @@ export const ReportsView: React.FC = () => {
 
       const matchesStatus = statusFilter === 'ALL' || r.status === statusFilter;
       const matchesType = taxTypeFilter === 'ALL' || r.reportType === taxTypeFilter;
-      const matchesAcc = accountantFilter === 'ALL' || r.accountantId === accountantFilter;
+      const matchesAcc = accountantFilter === 'ALL' || r.submittedBy === accountantFilter;
 
       return matchesSearch && matchesStatus && matchesType && matchesAcc;
     });
@@ -413,15 +415,15 @@ export const ReportsView: React.FC = () => {
             <option value="SUV_SOLIGI">Suv solig'i</option>
           </select>
 
-          {/* Accountant Filter */}
+          {/* Kim topshirgani bo'yicha filtr (statik biriktirilgan buxgalter emas) */}
           <select
             value={accountantFilter}
             onChange={(e) => setAccountantFilter(e.target.value)}
             className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-medium text-slate-700 outline-none cursor-pointer"
           >
-            <option value="ALL">Barcha Buxgalterlar</option>
+            <option value="ALL">Barcha Topshirganlar</option>
             {visibleEmployees.map(emp => (
-              <option key={emp.id} value={emp.id}>{emp.name}</option>
+              <option key={emp.id} value={emp.name}>{emp.name}</option>
             ))}
           </select>
         </div>
@@ -456,7 +458,7 @@ export const ReportsView: React.FC = () => {
                   <th className="p-3.5">Mijoz & STIR</th>
                   <th className="p-3.5">Biriktirilgan Hisobot Shakllari</th>
                   <th className="p-3.5">Topshirish Progressi</th>
-                  <th className="p-3.5">Mas'ul Xodim</th>
+                  <th className="p-3.5">Topshirgan Xodim</th>
                   <th className="p-3.5">Oxirgi Topshirilgan</th>
                   <th className="p-3.5 text-right">Boshqarish & Tezkor Amallar</th>
                 </tr>
@@ -479,7 +481,6 @@ export const ReportsView: React.FC = () => {
                     pendingCount,
                     completionPercentage,
                     overallStatus,
-                    accountantName,
                     latestSubmission,
                     lastSubmittedBy,
                   }) => {
@@ -616,16 +617,16 @@ export const ReportsView: React.FC = () => {
                             </div>
                           </td>
 
-                          {/* Accountant */}
+                          {/* Kim topshirgani — statik biriktirilgan xodim emas, aynan
+                              "Topshirildi" deb belgilagan xodimning ismi avtomatik ko'rinadi */}
                           <td className="p-3.5 font-medium text-slate-800">
-                            <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-slate-600" />
-                              <span>{accountantName}</span>
-                            </div>
-                            {lastSubmittedBy && (
-                              <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                                Topshirgan: {lastSubmittedBy}
+                            {lastSubmittedBy ? (
+                              <div className="flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{lastSubmittedBy}</span>
                               </div>
+                            ) : (
+                              <span className="text-slate-500 italic text-[11px]">Hali hech kim topshirmagan</span>
                             )}
                           </td>
 
@@ -743,7 +744,11 @@ export const ReportsView: React.FC = () => {
                                             </span>
                                           </div>
                                           <div className="text-[11px] text-slate-600 mt-1">
-                                            Mas'ul: <strong className="text-slate-800">{accountantName}</strong>
+                                            {report.submittedBy ? (
+                                              <>Topshirgan: <strong className="text-emerald-700">{report.submittedBy}</strong></>
+                                            ) : (
+                                              <span className="italic">Hali hech kim topshirmagan</span>
+                                            )}
                                           </div>
                                         </div>
 
@@ -856,7 +861,7 @@ export const ReportsView: React.FC = () => {
                   <th className="p-3.5">Mijoz & STIR</th>
                   <th className="p-3.5">Hisobot Shakli</th>
                   <th className="p-3.5">Holati</th>
-                  <th className="p-3.5">Mas'ul Xodim</th>
+                  <th className="p-3.5">Topshirgan Xodim</th>
                   <th className="p-3.5">Topshirilgan Vaqt</th>
                   <th className="p-3.5 text-right">Harakatlar</th>
                 </tr>
@@ -901,14 +906,13 @@ export const ReportsView: React.FC = () => {
                       </td>
 
                       <td className="p-3.5 text-slate-700 font-medium">
-                        {employees.find(e => e.id === report.accountantId)?.name || 'Tayinlanmagan'}
+                        {report.submittedBy || <span className="text-slate-500 italic text-[11px]">Hali hech kim topshirmagan</span>}
                       </td>
 
                       <td className="p-3.5 text-slate-600">
                         {report.submittedAt ? (
                           <div className="space-y-1">
                             <div className="font-semibold text-slate-800">{report.submittedAt}</div>
-                            <div className="text-[10px] text-slate-600">{report.submittedBy}</div>
                             {report.proofAttachment && (
                               <button
                                 type="button"
@@ -1000,7 +1004,10 @@ export const ReportsView: React.FC = () => {
                   {selectedModalClientGroup.client.name}
                 </h3>
                 <p className="text-[11px] text-slate-700 mt-0.5">
-                  STIR: {selectedModalClientGroup.client.stir} &bull; Mas'ul buxgalter: {selectedModalClientGroup.accountantName}
+                  STIR: {selectedModalClientGroup.client.stir}
+                  {selectedModalClientGroup.lastSubmittedBy && (
+                    <> &bull; Oxirgi topshirgan: {selectedModalClientGroup.lastSubmittedBy}</>
+                  )}
                 </p>
               </div>
               <button
