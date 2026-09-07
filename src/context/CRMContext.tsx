@@ -706,7 +706,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const pollOnce = async () => {
       if (!coreDataHydrated.current || cancelled) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      // MUHIM: tab fonda (background/ko'rinmas) bo'lsa ham polling davom
+      // etishi kerak — aks holda chatga yangi xabar kelganda ovozli/brauzer
+      // bildirishnomasi hech qachon ishga tushmas edi (chunki foydalanuvchi
+      // aynan boshqa oynada bo'lgan paytda bildirishnoma kerak bo'ladi,
+      // tab ko'rinib turgan paytda emas).
       // So'rov boshlanishidan oldin yaqinda lokal o'zgarish bo'lgan bo'lsa —
       // bu siklni butunlay o'tkazib yuboramiz (keyingi poll bir necha soniyadan
       // keyin bo'ladi, hech narsa yo'qolmaydi).
