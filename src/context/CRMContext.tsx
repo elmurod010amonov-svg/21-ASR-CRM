@@ -333,15 +333,30 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // dan uzoqroq davom etsa, himoya muddati so'rov hali tugamasdan tugab,
   // keyingi polling ESKI ma'lumotni qaytarib, endigina kiritilgan
   // o'zgarishni (masalan hisobot holatini) yo'qotib qo'yishi mumkin edi.
-  const syncCollectionToServer = useCallback((endpoint: string, data: unknown, label: string) => {
+  // Bir nechta to'plam bir vaqtda o'zgarganda (masalan "Baza to'g'irlash"
+  // 9 ta to'plamni birdan yozadi), sekin serverga qarshi bir nechta og'ir
+  // so'rov bir vaqtda ketadi — ba'zilari jim-jimgina muvaffaqiyatsiz
+  // tugashi (tarmoq xatosi, vaqtincha tiqilinch) mumkin edi, natijada
+  // o'zgarish serverga umuman saqlanmay, keyingi tekshiruvda "qaytib
+  // kelganday" ko'rinardi. Endi xato bo'lsa, bir necha marta qayta
+  // urinib ko'radi.
+  const syncCollectionToServer = useCallback((endpoint: string, data: unknown, label: string, attempt = 0): Promise<void> => {
     localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
     return apiPut(endpoint, data)
       .then(() => {
         localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
       })
       .catch((err) => {
-        console.error(`${label} serverga saqlanmadi:`, err);
         localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
+        if (attempt < 2) {
+          console.warn(`${label} serverga saqlanmadi, qayta urinilmoqda (${attempt + 1}/2):`, err);
+          return new Promise<void>((resolve) => {
+            window.setTimeout(() => {
+              resolve(syncCollectionToServer(endpoint, data, label, attempt + 1));
+            }, 1500 * (attempt + 1));
+          });
+        }
+        console.error(`${label} serverga saqlanmadi (barcha urinishlar tugadi):`, err);
       });
   }, []);
 
