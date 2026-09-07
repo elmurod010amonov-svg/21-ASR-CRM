@@ -398,7 +398,14 @@ export function autoFixDatabase(state: DatabaseState): {
       changed = true;
     }
 
-    const fee = (c.monthlyFee && c.monthlyFee > 0) ? c.monthlyFee : 1500000;
+    // 0 — amal qiluvchi qiymat (masalan bepul davr uchun); faqat haqiqatan
+    // noto'g'ri (bo'sh yoki manfiy) qiymatlarni standartga almashtiramiz.
+    // "c.monthlyFee && ..." shaklidagi eski tekshiruv 0ni "bo'sh" deb xato
+    // hisoblab, ataylab 0 qilingan tarifni standart qiymatga qaytarib
+    // yuborardi (shu bilan skaner tekshiruvi bilan mos kelmasdi).
+    const fee = (c.monthlyFee === undefined || c.monthlyFee === null || isNaN(c.monthlyFee) || c.monthlyFee < 0)
+      ? 1500000
+      : c.monthlyFee;
     if (fee !== c.monthlyFee) changed = true;
 
     if (changed) repairedCount++;
