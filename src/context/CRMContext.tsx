@@ -778,6 +778,92 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [fetchSharedData]);
 
+  // Xodim tizimga kirgach, brauzer bildirishnomasi (Notification) uchun
+  // ruxsat so'raymiz (login tugmasi bosilishi — foydalanuvchi harakati —
+  // ko'pchilik brauzerlar buni talab qiladi). Faqat bir marta so'raladi.
+  const notificationPermissionRequested = useRef(false);
+  useEffect(() => {
+    if (currentUser.id === 'guest') return;
+    if (notificationPermissionRequested.current) return;
+    notificationPermissionRequested.current = true;
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } catch (e) {
+      // brauzer qo'llab-quvvatlamasa e'tiborsiz qoldiramiz
+    }
+  }, [currentUser.id]);
+
+  // Jamoa yoki shaxsiy chatga yangi xabar kelganda xodim buni sezmay
+  // qolmasligi uchun — ovozli signal (beep) va (ruxsat berilgan bo'lsa)
+  // brauzer bildirishnomasi ko'rsatamiz. Faqat CHINDAN YANGI (avval
+  // ko'rilmagan) va boshqa xodim yozgan, joriy foydalanuvchi a'zo bo'lgan
+  // xonadagi xabarlar uchun — sahifa birinchi ochilganda mavjud eski
+  // xabarlar uchun signal berilmaydi.
+  const knownChatMessageIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const currentIds = new Set(chatMessages.map(m => m.id));
+    const previousIds = knownChatMessageIdsRef.current;
+    knownChatMessageIdsRef.current = currentIds;
+    if (previousIds === null) return; // birinchi yuklanish — signal bermaymiz
+
+    if (currentUser.id === 'guest') return;
+    const newMessages = chatMessages.filter(m => !previousIds.has(m.id));
+    if (newMessages.length === 0) return;
+
+    const relevantNew = newMessages.filter(m => {
+      if (m.senderId === currentUser.id) return false;
+      const room = chatRooms.find(r => r.id === m.roomId);
+      return room ? room.memberIds.includes(currentUser.id) : false;
+    });
+    if (relevantNew.length === 0) return;
+
+    try {
+      const AudioCtx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const playTone = (freq: number, startTime: number, duration: number) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        };
+        const now = ctx.currentTime;
+        playTone(880, now, 0.16);
+        playTone(1180, now + 0.16, 0.2);
+        setTimeout(() => ctx.close(), 600);
+      }
+    } catch (e) {
+      console.error('Bildirishnoma ovozini chalib bo\'lmadi:', e);
+    }
+
+    const last = relevantNew[relevantNew.length - 1];
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const notif = new Notification(`${last.senderName} — yangi xabar`, {
+          body: last.text || 'Fayl yubordi',
+          icon: '/assets/guest-avatar.png',
+          tag: `chat-${last.roomId}`,
+        });
+        notif.onclick = () => {
+          window.focus();
+          setActiveTab('Chat');
+          setPendingChatRoomId(last.roomId);
+        };
+      }
+    } catch (e) {
+      console.error('Brauzer bildirishnomasi ko\'rsatilmadi:', e);
+    }
+  }, [chatMessages, chatRooms, currentUser.id]);
+
   // Ushbu 19 ta umumiy holatdan BIRI o'zgarganda ham — pollingni bir necha
   // soniyaga "jim" qilamiz (localEditGuardUntil), toki debounce+PUT to'liq
   // yakunlanguncha eski server javobi bu yangi o'zgarishni ustidan yozib
@@ -2535,15 +2621,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      let mappedAccountant = item.accountantName || item.accountantId || 'Jahongir Amonov';
-      let mappedAccountantId = item.accountantId || 'emp-1';
+      // Excel qatorida mas'ul buxgalter ko'rsatilmagan bo'lsa — avval hammasi
+      // avtomatik ravishda Super Adminga (emp-1) biriktirilib qolardi. Endi
+      // aniq ko'rsatilmasa, "Belgilanmagan" holida qoldiramiz — mijozlar
+      // hech kimga sun'iy ravishda tegishli bo'lib qolmaydi, va allaqachon
+      // hamma xodim istalgan mijoz bilan ishlay oladi (biriktirish shart emas).
+      let mappedAccountant = item.accountantName || '';
+      let mappedAccountantId = item.accountantId || '';
 
-      if (!item.accountantId && item.accountantName) {
-        const match = employees.find(emp => emp.name.toLowerCase() === String(item.accountantName).toLowerCase());
+      if (!mappedAccountantId && mappedAccountant) {
+        const match = employees.find(emp => emp.name.toLowerCase() === String(mappedAccountant).toLowerCase());
         if (match) {
           mappedAccountantId = match.id;
           mappedAccountant = match.name;
         }
+      }
+
+      if (!mappedAccountantId && !mappedAccountant) {
+        mappedAccountant = 'Belgilanmagan';
       }
 
       if (existingStirMap.has(stir)) {
@@ -2559,8 +2654,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               taxType: item.taxType || updatedClientsList[idx].taxType,
               type: item.type || updatedClientsList[idx].type,
               segment: item.segment || updatedClientsList[idx].segment,
-              accountantId: mappedAccountantId,
-              accountantName: mappedAccountant || updatedClientsList[idx].accountantName,
+              accountantId: mappedAccountantId || updatedClientsList[idx].accountantId,
+              accountantName: mappedAccountantId ? mappedAccountant : updatedClientsList[idx].accountantName,
             };
             updated++;
           }
