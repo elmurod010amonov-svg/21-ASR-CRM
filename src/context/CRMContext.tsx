@@ -1572,6 +1572,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPayments(prev => prev.map(p => p.accountantId === id ? { ...p, accountantId: 'emp-1' } : p));
     setLetters(prev => prev.map(l => l.accountantId === id ? { ...l, accountantId: 'emp-1' } : l));
     setKameral(prev => prev.map(k => k.accountantId === id ? { ...k, accountantId: 'emp-1' } : k));
+    setIssues(prev => prev.map(i => i.accountantId === id ? { ...i, accountantId: 'emp-1' } : i));
+    // O'chirilgan xodimni topshiriqlar (vazifalar) ijrochilar ro'yxatidan
+    // ham olib tashlaymiz — aks holda mavjud bo'lmagan xodimga "biriktirilgan"
+    // bo'lib qolaveradi.
+    setTasks(prev => prev.map(t => {
+      if (!t.assigneeIds.includes(id)) return t;
+      const idx = t.assigneeIds.indexOf(id);
+      return {
+        ...t,
+        assigneeIds: t.assigneeIds.filter(a => a !== id),
+        assigneeNames: t.assigneeNames.filter((_, i) => i !== idx),
+        acceptedBy: t.acceptedBy.filter(a => a !== id),
+      };
+    }));
 
     // Remove direct chat rooms
     setChatRooms(prev => prev.filter(r => !(!r.isGroup && r.memberIds.includes(id))));
@@ -2753,7 +2767,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           address: item.address || 'O\'zbekiston',
           accountantId: mappedAccountantId,
           accountantName: mappedAccountant,
-          monthlyFee: item.monthlyFee || 2000000,
+          // 0 — amal qiluvchi tarif (masalan bepul davr); faqat aniq
+          // ko'rsatilmagan holatda standart qiymatga tushamiz.
+          monthlyFee: item.monthlyFee === undefined || item.monthlyFee === null || isNaN(item.monthlyFee) ? 2000000 : item.monthlyFee,
           contractDate: '2024-08-01',
           status: 'ACTIVE',
           notes: item.notes || 'Excel orqali import qilingan mijoz.',
