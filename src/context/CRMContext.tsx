@@ -213,6 +213,14 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V3';
 
+// Xodimlar orasida umumiy (shared) bo'lishi kerak bo'lgan barcha modullar —
+// har biri Mongo'dagi bir xil nomli collection bilan /api/<name> orqali
+// GET (o'qish) va PUT (butun massivni saqlash) qiladi. Real-time push yo'q
+// (WebSocket infratuzilmasi mavjud emas), shuning uchun boshqa xodimlarning
+// o'zgarishlarini ko'rish uchun quyida davriy polling ishlatiladi.
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const SHARED_DATA_POLL_INTERVAL_MS = 5000;
+
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isScannerModalOpen, setIsScannerModalOpen] = useState<boolean>(false);
   const [scanResult, setScanResult] = useState<DatabaseScanResult | null>(null);
@@ -399,10 +407,21 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
 
-  // Akt Word shablon faylini IndexedDB'dan yuklash (eski localStorage'dagi nusxadan bir martalik migratsiya bilan)
+  // Akt Word shablon fayli — endi barcha xodimlar uchun umumiy (serverda
+  // saqlanadi). Avval serverdan o'qishga harakat qilamiz; server bo'sh bo'lsa
+  // (hali hech kim yuklamagan) — eski IndexedDB/localStorage nusxasiga
+  // qaraymiz va topilsa, uni bir martalik migratsiya sifatida serverga ham
+  // yuklaymiz (shu orqali oldin faqat shu brauzerda bo'lgan shablon endi
+  // barcha xodimlarga ko'rinadigan bo'ladi).
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let retryTimer: number | undefined;
+
+    // Xatoda ham (masalan server vaqtincha ulanmasa) debtActTemplateFileHydrated
+    // true bo'lib qolmasligi kerak — aks holda pastdagi saqlash effekti bo'sh/eski
+    // lokal holatni serverga PUT qilib, serverdagi umumiy shablonni o'chirib
+    // yuborishi mumkin edi (xodimlar ma'lumoti yo'qolgan xatoning aynan shu turi).
+    const loadLocalFallback = async () => {
       try {
         let file = await idbGetFile<{ base64: string; fileName: string }>('debtActTemplateFile');
         if (!file) {
@@ -410,14 +429,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (legacy) {
             try {
               const parsed = JSON.parse(legacy);
-              if (parsed) {
-                file = parsed;
-                await idbSetFile('debtActTemplateFile', parsed);
-              }
+              if (parsed) file = parsed;
             } catch {
               // legacy yozuv buzilgan — e'tiborsiz qoldiramiz
             }
-            localStorage.removeItem('21ASR_DEBT_ACT_TEMPLATE_FILE');
           }
         }
         if (!cancelled && file) {
@@ -425,33 +440,89 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } catch (e) {
         console.error('Akt shabloni fayli IndexedDB dan o\'qib bo\'lmadi:', e);
-      } finally {
-        if (!cancelled) debtActTemplateFileHydrated.current = true;
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    const hydrate = async (attempt: number) => {
+      if (cancelled) return;
+      try {
+        const serverFile = await apiGet<{ base64: string; fileName: string } | null>('/api/debtActTemplate');
+        if (cancelled) return;
+        if (serverFile) {
+          setDebtActTemplateFile(serverFile);
+          await idbSetFile('debtActTemplateFile', serverFile).catch(() => {});
+        } else {
+          // Server aniq "shablon yo'q" deb javob berdi — eski IndexedDB/localStorage
+          // nusxasi bo'lsa, uni bir martalik migratsiya sifatida serverga yuklaymiz.
+          let file = await idbGetFile<{ base64: string; fileName: string }>('debtActTemplateFile');
+          if (!file) {
+            const legacy = localStorage.getItem('21ASR_DEBT_ACT_TEMPLATE_FILE');
+            if (legacy) {
+              try {
+                const parsed = JSON.parse(legacy);
+                if (parsed) {
+                  file = parsed;
+                  await idbSetFile('debtActTemplateFile', parsed);
+                }
+              } catch {
+                // legacy yozuv buzilgan — e'tiborsiz qoldiramiz
+              }
+              localStorage.removeItem('21ASR_DEBT_ACT_TEMPLATE_FILE');
+            }
+          }
+          if (!cancelled && file) {
+            setDebtActTemplateFile(file);
+            apiPut('/api/debtActTemplate', file).catch(err => console.error('Akt shabloni serverga ko\'chirilmadi:', err));
+          }
+        }
+        debtActTemplateFileHydrated.current = true;
+      } catch (e) {
+        console.error('Akt shabloni serverdan yuklanmadi, qayta urinilmoqda:', e);
+        if (attempt === 0) await loadLocalFallback();
+        if (!cancelled) {
+          const delay = Math.min(30000, 3000 * Math.pow(1.5, attempt));
+          retryTimer = window.setTimeout(() => hydrate(attempt + 1), delay);
+        }
+      }
+    };
+
+    hydrate(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, []);
 
-  // Akt Word shablon faylini IndexedDB'ga saqlash (hydration tugagunicha yozmaymiz — aks holda mavjud faylni null bilan ustidan yozib yuboradi)
+  // Akt Word shablon faylini IndexedDB'ga (lokal tezkor kesh) va serverga
+  // (barcha xodimlar uchun umumiy manba) saqlash — hydratsiya tugamaguncha
+  // yozmaymiz (aks holda mavjud faylni null bilan ustidan yozib yuboradi).
   useEffect(() => {
     if (!debtActTemplateFileHydrated.current) return;
-    (async () => {
-      try {
-        if (debtActTemplateFile) {
-          await idbSetFile('debtActTemplateFile', debtActTemplateFile);
-        } else {
-          await idbDeleteFile('debtActTemplateFile');
+    const timer = window.setTimeout(() => {
+      (async () => {
+        try {
+          if (debtActTemplateFile) {
+            await idbSetFile('debtActTemplateFile', debtActTemplateFile);
+          } else {
+            await idbDeleteFile('debtActTemplateFile');
+          }
+        } catch (e) {
+          console.error('Akt shabloni fayli lokal saqlanmadi:', e);
         }
-      } catch (e) {
-        console.error('Akt shabloni fayli saqlanmadi:', e);
-        addNotification({
-          type: 'SYSTEM',
-          title: 'Xatolik',
-          message: 'Qarzdorlik akti Word shabloni brauzer xotirasiga saqlanmadi. Fayl hajmini kichraytirib qayta yuklang.',
-          linkModule: 'Sozlamalar',
-        });
-      }
-    })();
+        try {
+          await apiPut('/api/debtActTemplate', debtActTemplateFile);
+        } catch (err) {
+          console.error('Akt shabloni serverga saqlanmadi:', err);
+          addNotification({
+            type: 'SYSTEM',
+            title: 'Xatolik',
+            message: 'Qarzdorlik akti Word shabloni serverga saqlanmadi. Fayl hajmini kichraytirib qayta yuklang.',
+            linkModule: 'Sozlamalar',
+          });
+        }
+      })();
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [debtActTemplateFile]);
 
   useEffect(() => {
@@ -466,21 +537,72 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [clients]);
 
-  // Mijozlar va xodimlarni serverdan (Mongo) yuklab olish — bu ikkalasi endi
-  // barcha xodimlar uchun umumiy (shared) ma'lumot. Yuklanmagunicha pastdagi
+  // Barcha umumiy (shared) modullarni serverdan (Mongo) yuklab olish — bular
+  // endi barcha xodimlar uchun umumiy ma'lumot. Yuklanmagunicha pastdagi
   // sinxronlash effektlari ishlamaydi (aks holda bo'sh massiv serverni tozalab
   // qo'yishi mumkin edi) — xuddi debtActTemplateFile hydration patterni kabi.
+  const fetchSharedData = useCallback(() => Promise.all([
+    apiGet<Client[]>('/api/clients'),
+    apiGet<Employee[]>('/api/employees'),
+    apiGet<ReportPeriod[]>('/api/periods'),
+    apiGet<TaxReport[]>('/api/taxReports'),
+    apiGet<Accounting1CRecord[]>('/api/accounting1C'),
+    apiGet<PaymentRecord[]>('/api/payments'),
+    apiGet<ReceiptRecord[]>('/api/receipts'),
+    apiGet<InvoiceRecord[]>('/api/invoices'),
+    apiGet<LetterRecord[]>('/api/letters'),
+    apiGet<KameralAudit[]>('/api/kameral'),
+    apiGet<IssueRecord[]>('/api/issues'),
+    apiGet<TaskRecord[]>('/api/tasks'),
+    apiGet<AutomaticReminder[]>('/api/reminders'),
+    apiGet<ChatRoom[]>('/api/chatRooms'),
+    apiGet<ChatMessage[]>('/api/chatMessages'),
+    apiGet<AuditLogRecord[]>('/api/auditLogs'),
+    apiGet<NotificationItem[]>('/api/notifications'),
+    apiGet<Gift[]>('/api/gifts'),
+  ] as const), []);
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let retryTimer: number | undefined;
+    let hasWarned = false;
+
+    // MUHIM: coreDataHydrated faqat serverdan MUVAFFAQIYATLI yuklanganda true
+    // bo'lishi kerak. Aks holda (masalan server vaqtincha uxlab qolgan yoki
+    // Mongo ulanishi uzilgan bo'lsa) — lokal (localStorage'dagi eski yoki
+    // standart) massiv "hydratsiya tugadi" deb noto'g'ri belgilanib, pastdagi
+    // sinxronlash effektlari uni serverga PUT qilib yuborardi va real
+    // ma'lumotlarni (masalan, kiritilgan xodimlarni) o'chirib tashlardi.
+    // Shu sababli xato holatda hech narsani true qilmaymiz — faqat qayta
+    // urinib turamiz, toki chinakam serverdan yuklab olmagunimizcha.
+    const hydrate = async (attempt: number) => {
+      if (cancelled) return;
       try {
-        const [serverClients, serverEmployees] = await Promise.all([
-          apiGet<Client[]>('/api/clients'),
-          apiGet<Employee[]>('/api/employees'),
-        ]);
+        const [
+          serverClients, serverEmployees, serverPeriods, serverTaxReports, serverAccounting1C,
+          serverPayments, serverReceipts, serverInvoices, serverLetters, serverKameral,
+          serverIssues, serverTasks, serverReminders, serverChatRooms, serverChatMessages,
+          serverAuditLogs, serverNotifications, serverGifts,
+        ] = await fetchSharedData();
         if (cancelled) return;
         setClients(serverClients);
         setEmployees(serverEmployees);
+        setPeriods(serverPeriods);
+        setTaxReports(serverTaxReports);
+        setAccounting1C(serverAccounting1C);
+        setPayments(serverPayments);
+        setReceipts(serverReceipts);
+        setInvoices(serverInvoices);
+        setLetters(serverLetters);
+        setKameral(serverKameral);
+        setIssues(serverIssues);
+        setTasks(serverTasks);
+        setReminders(serverReminders);
+        setChatRooms(serverChatRooms);
+        setChatMessages(serverChatMessages);
+        setAuditLogs(serverAuditLogs);
+        setNotifications(serverNotifications);
+        setGifts(serverGifts);
         // Joriy foydalanuvchini eng yangi ma'lumot bilan yangilaymiz (roli/ruxsatlari
         // o'zgargan bo'lishi mumkin), agar hali ham mavjud bo'lsa
         setCurrentUser(prev => {
@@ -488,25 +610,119 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const fresh = serverEmployees.find(e => e.id === prev.id);
           return fresh || prev;
         });
+        // Joriy davrni ham eng yangi ro'yxatga moslashtiramiz
+        setCurrentPeriod(prev => serverPeriods.find(p => p.id === prev.id) || serverPeriods.find(p => p.isCurrent) || serverPeriods[0] || prev);
+        coreDataHydrated.current = true;
+        if (hasWarned) {
+          addNotification({
+            type: 'SYSTEM',
+            title: 'Serverga ulanish tiklandi',
+            message: 'Ma\'lumotlar serverdan muvaffaqiyatli yuklandi.',
+            linkModule: 'Dashboard',
+          });
+        }
       } catch (err) {
-        console.error('Mijozlar/xodimlarni serverdan yuklab bo\'lmadi:', err);
-        addNotification({
-          type: 'SYSTEM',
-          title: 'Serverga ulanib bo\'lmadi',
-          message: 'Mijozlar va xodimlar ro\'yxati oxirgi saqlangan (lokal) nusxadan ko\'rsatilmoqda. Internetni tekshirib, sahifani yangilang.',
-          linkModule: 'Dashboard',
-        });
-      } finally {
-        if (!cancelled) coreDataHydrated.current = true;
+        console.error('Umumiy ma\'lumotlarni serverdan yuklab bo\'lmadi:', err);
+        if (cancelled) return;
+        if (!hasWarned) {
+          hasWarned = true;
+          addNotification({
+            type: 'SYSTEM',
+            title: 'Serverga ulanib bo\'lmadi',
+            message: 'Ma\'lumotlar hali serverdan yuklanmadi, qayta urinilmoqda. Xavfsizlik uchun ulanish tiklanmaguncha hech qanday o\'zgarish serverga yuborilmaydi.',
+            linkModule: 'Dashboard',
+          });
+        }
+        const delay = Math.min(30000, 3000 * Math.pow(1.5, attempt));
+        retryTimer = window.setTimeout(() => hydrate(attempt + 1), delay);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    hydrate(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Boshqa xodimlar kiritgan o'zgarishlarni ko'rish uchun — real-time push
+  // (WebSocket) yo'q, shuning uchun umumiy ma'lumotlarni davriy ravishda
+  // serverdan qayta o'qib, faqat haqiqatan o'zgargan qismlarini yangilaymiz.
+  // Sahifa fonda (background tab) bo'lsa so'rov yubormaymiz.
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollOnce = async () => {
+      if (!coreDataHydrated.current || cancelled) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      try {
+        const [
+          serverClients, serverEmployees, serverPeriods, serverTaxReports, serverAccounting1C,
+          serverPayments, serverReceipts, serverInvoices, serverLetters, serverKameral,
+          serverIssues, serverTasks, serverReminders, serverChatRooms, serverChatMessages,
+          serverAuditLogs, serverNotifications, serverGifts,
+        ] = await fetchSharedData();
+        if (cancelled) return;
+
+        setClients(prev => sameJson(prev, serverClients) ? prev : serverClients);
+        setEmployees(prev => sameJson(prev, serverEmployees) ? prev : serverEmployees);
+        setCurrentUser(prev => {
+          if (prev.id === 'guest') return prev;
+          const fresh = serverEmployees.find(e => e.id === prev.id);
+          return fresh && !sameJson(fresh, prev) ? fresh : prev;
+        });
+        setPeriods(prev => sameJson(prev, serverPeriods) ? prev : serverPeriods);
+        setTaxReports(prev => sameJson(prev, serverTaxReports) ? prev : serverTaxReports);
+        setAccounting1C(prev => sameJson(prev, serverAccounting1C) ? prev : serverAccounting1C);
+        setPayments(prev => sameJson(prev, serverPayments) ? prev : serverPayments);
+        setReceipts(prev => sameJson(prev, serverReceipts) ? prev : serverReceipts);
+        setInvoices(prev => sameJson(prev, serverInvoices) ? prev : serverInvoices);
+        setLetters(prev => sameJson(prev, serverLetters) ? prev : serverLetters);
+        setKameral(prev => sameJson(prev, serverKameral) ? prev : serverKameral);
+        setIssues(prev => sameJson(prev, serverIssues) ? prev : serverIssues);
+        setTasks(prev => sameJson(prev, serverTasks) ? prev : serverTasks);
+        setReminders(prev => sameJson(prev, serverReminders) ? prev : serverReminders);
+        setChatRooms(prev => sameJson(prev, serverChatRooms) ? prev : serverChatRooms);
+        setChatMessages(prev => sameJson(prev, serverChatMessages) ? prev : serverChatMessages);
+        setAuditLogs(prev => sameJson(prev, serverAuditLogs) ? prev : serverAuditLogs);
+        setNotifications(prev => sameJson(prev, serverNotifications) ? prev : serverNotifications);
+        setGifts(prev => sameJson(prev, serverGifts) ? prev : serverGifts);
+      } catch (err) {
+        console.error('Umumiy ma\'lumotlarni yangilab bo\'lmadi (polling):', err);
+      }
+
+      if (debtActTemplateFileHydrated.current) {
+        try {
+          const serverTemplate = await apiGet<{ base64: string; fileName: string } | null>('/api/debtActTemplate');
+          if (!cancelled) {
+            setDebtActTemplateFile(prev => sameJson(prev, serverTemplate) ? prev : serverTemplate);
+          }
+        } catch (err) {
+          console.error('Akt shabloni yangilab bo\'lmadi (polling):', err);
+        }
+      }
+    };
+
+    const intervalId = window.setInterval(pollOnce, SHARED_DATA_POLL_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') pollOnce();
+    };
+    window.addEventListener('focus', pollOnce);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', pollOnce);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [fetchSharedData]);
+
   // Har qanday o'zgarishdan keyin (yangi mijoz, tahrirlash, xodimga sovg'a
   // berish va h.k.) butun massivni serverga sinxronlaymiz — hydratsiya
-  // tugamaguncha yubormaymiz.
+  // tugamaguncha yubormaymiz. Shu orqali o'zgarish boshqa barcha xodimlarga
+  // ham (keyingi polling siklida) ko'rinadigan bo'ladi.
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
@@ -522,6 +738,134 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 400);
     return () => window.clearTimeout(timer);
   }, [employees]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/periods', periods).catch(err => console.error('Davrlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [periods]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/taxReports', taxReports).catch(err => console.error('Hisobotlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [taxReports]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/accounting1C', accounting1C).catch(err => console.error('1C yozuvlari serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [accounting1C]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/payments', payments).catch(err => console.error('To\'lovlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [payments]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/receipts', receipts).catch(err => console.error('Cheklar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [receipts]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/invoices', invoices).catch(err => console.error('Fakturalar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [invoices]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/letters', letters).catch(err => console.error('Xatlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [letters]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/kameral', kameral).catch(err => console.error('Kameral tekshiruvlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [kameral]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/issues', issues).catch(err => console.error('Kamchiliklar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [issues]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/tasks', tasks).catch(err => console.error('Topshiriqlar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/reminders', reminders).catch(err => console.error('Eslatmalar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [reminders]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/chatRooms', chatRooms).catch(err => console.error('Chat xonalari serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [chatRooms]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/chatMessages', chatMessages).catch(err => console.error('Chat xabarlari serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [chatMessages]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/auditLogs', auditLogs).catch(err => console.error('Audit jurnali serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [auditLogs]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/notifications', notifications).catch(err => console.error('Bildirishnomalar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!coreDataHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      apiPut('/api/gifts', gifts).catch(err => console.error('Sovg\'alar serverga saqlanmadi:', err));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [gifts]);
 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_taxReports`, JSON.stringify(taxReports));

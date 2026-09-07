@@ -15,7 +15,23 @@ import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import { connectToMongo } from './src/db/mongoClient';
-import { INITIAL_CLIENTS, INITIAL_EMPLOYEES } from './src/data/initialData';
+import {
+  INITIAL_CLIENTS,
+  INITIAL_EMPLOYEES,
+  INITIAL_PERIODS,
+  INITIAL_TAX_REPORTS,
+  INITIAL_ACCOUNTING_1C,
+  INITIAL_PAYMENTS,
+  INITIAL_LETTERS,
+  INITIAL_KAMERAL,
+  INITIAL_ISSUES,
+  INITIAL_TASKS,
+  INITIAL_REMINDERS,
+  INITIAL_CHAT_ROOMS,
+  INITIAL_CHAT_MESSAGES,
+  INITIAL_AUDIT_LOGS,
+  INITIAL_NOTIFICATIONS,
+} from './src/data/initialData';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -110,13 +126,116 @@ app.get('/api/db-test', async (req: Request, res: Response) => {
 
 // Front-end butun massivni yuboradi (mavjud optimistik-yangilash arxitekturasi
 // bilan mos) — bazadagi to'plam shu massiv bilan to'liq almashtiriladi.
+// Avval har bir yozuv `id` bo'yicha upsert qilinadi (mavjudlari yangilanadi,
+// yo'qlari qo'shiladi), so'ng massivda endi bo'lmagan yozuvlar o'chiriladi.
+// Bu deleteMany+insertMany'dan farqli o'laroq — bir vaqtda kelgan GET so'rovi
+// to'plamni "vaqtincha bo'sh" holatda ko'rib qolmaydi.
 async function replaceCollection(collectionName: string, docs: any[]) {
   const db = await connectToMongo();
-  await db.collection(collectionName).deleteMany({});
+  const col = db.collection(collectionName);
+  const ids = docs.map((d) => d?.id).filter((id): id is string => typeof id === 'string');
+
   if (docs.length > 0) {
-    await db.collection(collectionName).insertMany(docs);
+    await col.bulkWrite(
+      docs.map((doc) => ({
+        updateOne: {
+          filter: { id: doc.id },
+          update: { $set: doc },
+          upsert: true,
+        },
+      })) as any
+    );
   }
+
+  await col.deleteMany(ids.length > 0 ? { id: { $nin: ids } } : {});
 }
+
+// Mijozlar/Xodimlardan tashqari, CRM'ning boshqa barcha bo'limlari
+// (hisobotlar, to'lovlar, chat va h.k.) — avval faqat brauzer localStorage'ida
+// saqlanardi, shu sababli bitta xodim kiritgan o'zgarish boshqa xodimlarga
+// ko'rinmasdi. Endi ular ham shu umumiy GET/PUT patterni bilan Mongo'ga
+// sinxronlanadi va barcha xodimlarga umumiy (shared) bo'ladi.
+const ADDITIONAL_SHARED_COLLECTIONS = [
+  'periods',
+  'taxReports',
+  'accounting1C',
+  'payments',
+  'receipts',
+  'invoices',
+  'letters',
+  'kameral',
+  'issues',
+  'tasks',
+  'reminders',
+  'chatRooms',
+  'chatMessages',
+  'auditLogs',
+  'notifications',
+  'gifts',
+];
+
+function registerSharedCollectionRoutes(name: string) {
+  app.get(`/api/${name}`, async (req: Request, res: Response) => {
+    try {
+      const db = await connectToMongo();
+      const docs = await db.collection(name).find({}, { projection: { _id: 0 } }).toArray();
+      return res.json(docs);
+    } catch (error: any) {
+      console.error(`GET /api/${name} error:`, error);
+      return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+    }
+  });
+
+  app.put(`/api/${name}`, async (req: Request, res: Response) => {
+    try {
+      const docs = req.body;
+      if (!Array.isArray(docs)) {
+        return res.status(400).json({ error: 'Massiv (array) kutilgan' });
+      }
+      await replaceCollection(name, docs);
+      return res.json({ ok: true, count: docs.length });
+    } catch (error: any) {
+      console.error(`PUT /api/${name} error:`, error);
+      return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+    }
+  });
+}
+
+ADDITIONAL_SHARED_COLLECTIONS.forEach(registerSharedCollectionRoutes);
+
+// Qarzdorlik akti uchun Word shabloni fayli (base64) — ro'yxat emas, yagona
+// umumiy sozlama, shuning uchun massiv o'rniga bitta hujjat sifatida saqlanadi.
+app.get('/api/debtActTemplate', async (req: Request, res: Response) => {
+  try {
+    const db = await connectToMongo();
+    const doc = await db.collection('debtActTemplate').findOne({ id: 'default' }, { projection: { _id: 0, id: 0 } });
+    return res.json(doc || null);
+  } catch (error: any) {
+    console.error('GET /api/debtActTemplate error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
+
+app.put('/api/debtActTemplate', async (req: Request, res: Response) => {
+  try {
+    const body = req.body;
+    const db = await connectToMongo();
+    if (!body) {
+      await db.collection('debtActTemplate').deleteOne({ id: 'default' });
+    } else {
+      const { base64, fileName } = body;
+      await db.collection('debtActTemplate').updateOne(
+        { id: 'default' },
+        { $set: { id: 'default', base64, fileName } },
+        { upsert: true }
+      );
+    }
+    return res.json({ ok: true });
+  } catch (error: any) {
+    console.error('PUT /api/debtActTemplate error:', error);
+    return res.status(503).json({ error: 'Baza vaqtincha ishlamayapti' });
+  }
+});
 
 app.get('/api/clients', async (req: Request, res: Response) => {
   try {
@@ -422,6 +541,31 @@ async function seedInitialDataIfEmpty() {
   if (employeesCount === 0) {
     await db.collection('employees').insertMany(INITIAL_EMPLOYEES as any[]);
     console.log(`🌱 ${INITIAL_EMPLOYEES.length} ta boshlang'ich xodim bazaga yuklandi`);
+  }
+
+  const additionalSeeds: Record<string, any[]> = {
+    periods: INITIAL_PERIODS,
+    taxReports: INITIAL_TAX_REPORTS,
+    accounting1C: INITIAL_ACCOUNTING_1C,
+    payments: INITIAL_PAYMENTS,
+    letters: INITIAL_LETTERS,
+    kameral: INITIAL_KAMERAL,
+    issues: INITIAL_ISSUES,
+    tasks: INITIAL_TASKS,
+    reminders: INITIAL_REMINDERS,
+    chatRooms: INITIAL_CHAT_ROOMS,
+    chatMessages: INITIAL_CHAT_MESSAGES,
+    auditLogs: INITIAL_AUDIT_LOGS,
+    notifications: INITIAL_NOTIFICATIONS,
+  };
+
+  for (const [name, seedDocs] of Object.entries(additionalSeeds)) {
+    if (seedDocs.length === 0) continue;
+    const count = await db.collection(name).countDocuments();
+    if (count === 0) {
+      await db.collection(name).insertMany(seedDocs as any[]);
+      console.log(`🌱 ${seedDocs.length} ta boshlang'ich "${name}" yozuvi bazaga yuklandi`);
+    }
   }
 
   const credCount = await db.collection('credentials').countDocuments();
