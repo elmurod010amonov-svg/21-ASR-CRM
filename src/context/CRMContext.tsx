@@ -319,16 +319,22 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // o'zgarishning ustidan yozib yuborar edi (masalan "to'g'irlash" tugmasini
   // bosgandan keyin ma'lumot darrov eski holatiga qaytib qolishi shu sabab edi).
   const localEditGuardUntil = useRef(0);
-  const EDIT_GUARD_WINDOW_MS = 4000;
+  // Server (Render bepul tarifi + Mongo Atlas bepul klasteri) hozircha
+  // har bir yozuvni ~11-13 soniyada bajaryapti — shuning uchun himoya
+  // oynasi bu vaqtdan sezilarli darajada uzunroq bo'lishi kerak, aks holda
+  // so'rov hali tugamasdan himoya muddati tugab qolaveradi.
+  const EDIT_GUARD_WINDOW_MS = 25000;
 
-  // Server bilan sinxronlashning yagona nuqtasi — PUT so'rovi tugagunicha
-  // (muvaffaqiyatli yoki xato bilan) himoya vaqtini uzaytirib turadi. Sobit
-  // 4 soniyalik vaqt oynasiga tayanish xato edi: agar tarmoq/server sekin
-  // ishlasa (masalan Render vaqtincha sekinlashsa), PUT hali tugamasdan
-  // himoya muddati tugab, keyingi polling ESKI ma'lumotni qaytarib, endigina
-  // kiritilgan o'zgarishni (masalan yangi to'lovni) yo'qotib qo'yishi mumkin
-  // edi. Endi himoya haqiqiy yozish tugashiga bog'liq, taxminiy vaqtga emas.
+  // Server bilan sinxronlashning yagona nuqtasi. Himoya vaqti ikki joyda
+  // yangilanadi: (1) so'rov YUBORILISHIDAN OLDIN — uzun (sekin) so'rov
+  // davomida ham himoya faol bo'lib tursin uchun, (2) so'rov TUGAGANDA
+  // (muvaffaqiyatli yoki xato bilan) — orqasidan yana bir oz vaqt qoldirish
+  // uchun. Faqat (2)-punktga tayanish xato edi: agar so'rov EDIT_GUARD_WINDOW_MS
+  // dan uzoqroq davom etsa, himoya muddati so'rov hali tugamasdan tugab,
+  // keyingi polling ESKI ma'lumotni qaytarib, endigina kiritilgan
+  // o'zgarishni (masalan hisobot holatini) yo'qotib qo'yishi mumkin edi.
   const syncCollectionToServer = useCallback((endpoint: string, data: unknown, label: string) => {
+    localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
     return apiPut(endpoint, data)
       .then(() => {
         localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
