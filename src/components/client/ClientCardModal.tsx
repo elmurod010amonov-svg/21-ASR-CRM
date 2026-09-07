@@ -26,7 +26,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { ReportStatus, Status1C, ProofAttachment, TaxReport, ReportType, stirFieldLabel } from '../../types';
+import { ReportStatus, Status1C, ProofAttachment, TaxReport, ReportType, stirFieldLabel, ClientSegment, CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS, getClientSegment } from '../../types';
 import { ProofViewerModal } from '../common/ProofViewerModal';
 import { ClientReportFormsConfigModal } from '../common/ClientReportFormsConfigModal';
 import { isOborotkaActive, getTodayISO } from '../../utils/oborotka';
@@ -73,6 +73,7 @@ export const ClientCardModal: React.FC = () => {
     notes: '',
     type: 'YURIDIK' as string,
     taxType: 'AYLANMA' as string,
+    segment: 'YURIDIK' as ClientSegment,
   });
 
   // New task quick form
@@ -101,6 +102,7 @@ export const ClientCardModal: React.FC = () => {
       notes: client.notes || '',
       type: client.type,
       taxType: client.taxType,
+      segment: getClientSegment(client),
     });
   }, [client?.id]);
 
@@ -159,6 +161,7 @@ export const ClientCardModal: React.FC = () => {
       notes: editForm.notes.trim(),
       type: editForm.type as any,
       taxType: editForm.taxType as any,
+      segment: editForm.segment,
     });
 
     setIsEditingClient(false);
@@ -307,6 +310,14 @@ export const ClientCardModal: React.FC = () => {
                         <option value="QQS">QQS</option>
                         <option value="FOYDA">FOYDA</option>
                         <option value="YATT_QATQIY">YATT_QATQIY</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Turkum</label>
+                      <select value={editForm.segment} onChange={(e) => setEditForm({ ...editForm, segment: e.target.value as ClientSegment })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                        {CLIENT_SEGMENTS.map(seg => (
+                          <option key={seg} value={seg}>{CLIENT_SEGMENT_LABELS[seg]}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="md:col-span-2">

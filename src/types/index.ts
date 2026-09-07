@@ -71,12 +71,27 @@ export const stirFieldLength = (type: ClientType): number => (type === 'YATT' ? 
 export type TaxType = 'AYLANMA' | 'QQS' | 'FOYDA' | 'YATT_QATQIY';
 export type ClientStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
+// "Turi" (huquqiy shakl: YATT/YURIDIK) dan mustaqil, ish yuritish uchun
+// ishlatiladigan turkum/yo'nalish — Excel'dagi 4 ta varaqqa mos keladi.
+export type ClientSegment = 'YATT' | 'YURIDIK' | 'BUXGALTERIYA' | 'SAMARQAND';
+export const CLIENT_SEGMENTS: ClientSegment[] = ['YATT', 'YURIDIK', 'BUXGALTERIYA', 'SAMARQAND'];
+export const CLIENT_SEGMENT_LABELS: Record<ClientSegment, string> = {
+  YATT: 'YaTT',
+  YURIDIK: 'Yuridik',
+  BUXGALTERIYA: 'Buxgalteriya',
+  SAMARQAND: 'Samarqand',
+};
+// Eski (turkum kiritilishidan oldingi) mijozlarda "segment" maydoni bo'lmasligi
+// mumkin — bunday holda "Turi" (YATT/YURIDIK) qiymatiga tayanamiz.
+export const getClientSegment = (client: Pick<Client, 'segment' | 'type'>): ClientSegment => client.segment || client.type;
+
 export interface Client {
   id: string;
   name: string;
   stir: string; // YURIDIK: 9 xonali STIR (INN); YATT: 14 xonali JSHSHR (PINFL)
   type: ClientType;
   taxType: TaxType;
+  segment?: ClientSegment;
   phone: string;
   address: string;
   accountantId: string;

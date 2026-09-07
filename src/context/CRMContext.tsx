@@ -2528,6 +2528,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               phone: item.phone || updatedClientsList[idx].phone,
               taxType: item.taxType || updatedClientsList[idx].taxType,
               type: item.type || updatedClientsList[idx].type,
+              segment: item.segment || updatedClientsList[idx].segment,
               accountantId: mappedAccountantId,
               accountantName: mappedAccountant || updatedClientsList[idx].accountantName,
             };
@@ -2543,6 +2544,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           stir: stir,
           type: item.type || (stir.startsWith('5') ? 'YATT' : 'YURIDIK'),
           taxType: item.taxType || 'AYLANMA',
+          segment: item.segment,
           phone: item.phone || '+998 90 000 00 00',
           address: item.address || 'O\'zbekiston',
           accountantId: mappedAccountantId,

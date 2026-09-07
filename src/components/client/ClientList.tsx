@@ -15,7 +15,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { ClientType, TaxType, ReportType, Client, stirFieldLabel, stirFieldLength } from '../../types';
+import { ClientType, TaxType, ReportType, Client, stirFieldLabel, stirFieldLength, ClientSegment, CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS, getClientSegment } from '../../types';
 import { ClientReportFormsConfigModal, ALL_TAX_REPORTS } from '../common/ClientReportFormsConfigModal';
 import { isOborotkaActive } from '../../utils/oborotka';
 
@@ -39,6 +39,7 @@ export const ClientList: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterTaxType, setFilterTaxType] = useState<string>('ALL');
   const [filterAccountant, setFilterAccountant] = useState<string>('ALL');
+  const [filterSegment, setFilterSegment] = useState<string>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [clientForConfigForms, setClientForConfigForms] = useState<Client | null>(null);
 
@@ -47,6 +48,7 @@ export const ClientList: React.FC = () => {
   const [stir, setStir] = useState('');
   const [type, setType] = useState<ClientType>('YURIDIK');
   const [taxType, setTaxType] = useState<TaxType>('AYLANMA');
+  const [segment, setSegment] = useState<ClientSegment>('YURIDIK');
   const [selectedAddReports, setSelectedAddReports] = useState<ReportType[]>(['AYLANMA', 'JSHDS', 'INPS']);
   const [accountantId, setAccountantId] = useState(employees[2]?.id || '');
   const [phone, setPhone] = useState('+998 ');
@@ -67,10 +69,11 @@ export const ClientList: React.FC = () => {
       const matchesType = filterType === 'ALL' || c.type === filterType;
       const matchesTax = filterTaxType === 'ALL' || c.taxType === filterTaxType;
       const matchesAcc = filterAccountant === 'ALL' || c.accountantId === filterAccountant;
+      const matchesSegment = filterSegment === 'ALL' || getClientSegment(c) === filterSegment;
 
-      return matchesSearch && matchesType && matchesTax && matchesAcc;
+      return matchesSearch && matchesType && matchesTax && matchesAcc && matchesSegment;
     });
-  }, [clients, searchTerm, filterType, filterTaxType, filterAccountant]);
+  }, [clients, searchTerm, filterType, filterTaxType, filterAccountant, filterSegment]);
 
   const canDeleteClient = currentUser.id !== 'guest' && currentUser.role !== 'KASSIR';
 
@@ -97,6 +100,7 @@ export const ClientList: React.FC = () => {
       stir: cleanStir,
       type,
       taxType,
+      segment,
       accountantId,
       accountantName: assignedEmp?.name || 'Tayinlanmagan',
       phone,
@@ -114,6 +118,7 @@ export const ClientList: React.FC = () => {
     setPhone('+998 ');
     setNotes('');
     setSelectedAddReports(['AYLANMA', 'JSHDS', 'INPS']);
+    setSegment('YURIDIK');
     setIsAddModalOpen(false);
   };
 
@@ -181,6 +186,18 @@ export const ClientList: React.FC = () => {
           <option value="ALL">Barcha Mas'ullar</option>
           {employees.map(emp => (
             <option key={emp.id} value={emp.id}>{emp.name}</option>
+          ))}
+        </select>
+
+        {/* Segment/turkum selector */}
+        <select
+          value={filterSegment}
+          onChange={(e) => setFilterSegment(e.target.value)}
+          className="px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-700 outline-none cursor-pointer"
+        >
+          <option value="ALL">Barcha Turkumlar</option>
+          {CLIENT_SEGMENTS.map(seg => (
+            <option key={seg} value={seg}>{CLIENT_SEGMENT_LABELS[seg]}</option>
           ))}
         </select>
       </div>
@@ -427,6 +444,19 @@ export const ClientList: React.FC = () => {
                     <option value="QQS">QQS (12%)</option>
                     <option value="FOYDA">Foyda solig'i (15%)</option>
                     <option value="YATT_QATQIY">YaTT qat'iy soliq</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-neutral-700 mb-1">Turkum *</label>
+                  <select
+                    value={segment}
+                    onChange={(e) => setSegment(e.target.value as ClientSegment)}
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 text-neutral-900 rounded-xl text-xs outline-none"
+                  >
+                    {CLIENT_SEGMENTS.map(seg => (
+                      <option key={seg} value={seg}>{CLIENT_SEGMENT_LABELS[seg]}</option>
+                    ))}
                   </select>
                 </div>
 

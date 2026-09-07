@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { FileUp, FileSpreadsheet, CheckCircle2, AlertCircle, Upload, ArrowRight, Table, Sparkles } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
-import { ClientType, TaxType } from '../../types';
+import { ClientType, TaxType, ClientSegment, CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS } from '../../types';
 import * as XLSX from 'xlsx';
 
 // Sarlavha (header) ustunini aniqlash uchun barcha maydonlarning kalit
@@ -34,6 +34,17 @@ const normalizeTaxType = (raw: string): TaxType => {
   return 'AYLANMA';
 };
 
+// Varaq nomidan (masalan "YaTT Hisobotlari", "Buxgalterya", "Samarqand")
+// turkumni taxminiy aniqlash — foydalanuvchi pastdagi tanlovdan qo'lda
+// o'zgartira oladi.
+const inferSegmentFromSheetName = (sheetName: string): ClientSegment => {
+  const v = sheetName.trim().toUpperCase();
+  if (v.includes('YATT') || v.includes('ЯТТ')) return 'YATT';
+  if (v.includes('BUXGALTER')) return 'BUXGALTERIYA';
+  if (v.includes('SAMARQAND') || v.includes('SAMARKAND')) return 'SAMARQAND';
+  return 'YURIDIK';
+};
+
 export const ExcelImportView: React.FC = () => {
   const { clients, addClient, employees, setActiveTab, importClientsFromExcel } = useCRM();
 
@@ -43,6 +54,7 @@ export const ExcelImportView: React.FC = () => {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [importSegment, setImportSegment] = useState<ClientSegment>('YURIDIK');
 
   const [importedSuccess, setImportedSuccess] = useState(false);
 
@@ -53,6 +65,7 @@ export const ExcelImportView: React.FC = () => {
         stir: String(r.stir),
         type: r.type,
         taxType: r.taxType,
+        segment: importSegment,
         accountantName: r.accountantName,
         phone: r.phone,
         monthlyFee: Number(r.monthlyFee),
@@ -189,11 +202,13 @@ export const ExcelImportView: React.FC = () => {
     setSheetNames(wb.SheetNames);
     const firstSheet = wb.SheetNames[0];
     setSelectedSheet(firstSheet);
+    setImportSegment(inferSegmentFromSheetName(firstSheet));
     parseSheet(wb, firstSheet);
   };
 
   const handleSheetChange = (sheetName: string) => {
     setSelectedSheet(sheetName);
+    setImportSegment(inferSegmentFromSheetName(sheetName));
     if (workbook) {
       parseSheet(workbook, sheetName);
     }
@@ -241,18 +256,34 @@ export const ExcelImportView: React.FC = () => {
           {parseError && <span className="text-rose-600 text-xs font-semibold">{parseError}</span>}
         </div>
 
-        {sheetNames.length > 1 && (
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <label className="text-[11px] font-bold text-slate-600">Varaq (sheet):</label>
-            <select
-              value={selectedSheet}
-              onChange={(e) => handleSheetChange(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
-            >
-              {sheetNames.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+        {sheetNames.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+            {sheetNames.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-bold text-slate-600">Varaq (sheet):</label>
+                <select
+                  value={selectedSheet}
+                  onChange={(e) => handleSheetChange(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
+                >
+                  {sheetNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold text-slate-600">Turkum:</label>
+              <select
+                value={importSegment}
+                onChange={(e) => setImportSegment(e.target.value as ClientSegment)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
+              >
+                {CLIENT_SEGMENTS.map(seg => (
+                  <option key={seg} value={seg}>{CLIENT_SEGMENT_LABELS[seg]}</option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
       </div>

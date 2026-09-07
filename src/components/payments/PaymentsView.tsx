@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowUpRight, Download } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
+import { CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS, getClientSegment } from '../../types';
 
 export const PaymentsView: React.FC = () => {
-  const { payments, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct } = useCRM();
+  const { payments, clients, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct } = useCRM();
   const canGenerateAct = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR';
   const canManagePayments = currentUser.role === 'KASSIR';
   const [search, setSearch] = useState('');
@@ -11,15 +12,26 @@ export const PaymentsView: React.FC = () => {
   const [selectedClientForPay, setSelectedClientForPay] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [payNotes, setPayNotes] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState<string>('ALL');
 
   const totalContract = payments.reduce((acc, p) => acc + p.monthlyFee, 0);
   const totalPaid = payments.reduce((acc, p) => acc + p.paidAmount, 0);
   const totalDebt = payments.reduce((acc, p) => acc + p.debtAmount, 0);
 
+  // Turkum (YaTT / Yuridik / Buxgalteriya / Samarqand) bo'yicha jami
+  // nachisleniya (oylik shartnoma summasi) — har biri alohida + umumiy jami.
+  const clientSegmentMap = new Map(clients.map(c => [c.id, getClientSegment(c)]));
+  const segmentTotals = CLIENT_SEGMENTS.map(seg => ({
+    segment: seg,
+    label: CLIENT_SEGMENT_LABELS[seg],
+    total: payments.reduce((acc, p) => acc + (clientSegmentMap.get(p.clientId) === seg ? p.monthlyFee : 0), 0),
+  }));
+
   const filtered = payments.filter(p => {
     const matchesSearch = p.clientName.toLowerCase().includes(search.toLowerCase()) || p.stir.includes(search);
     const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSegment = segmentFilter === 'ALL' || clientSegmentMap.get(p.clientId) === segmentFilter;
+    return matchesSearch && matchesStatus && matchesSegment;
   });
 
   const handlePaySubmit = (e: React.FormEvent) => {
@@ -70,6 +82,23 @@ export const PaymentsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Turkumlar bo'yicha jami nachisleniya (tushum) */}
+      <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+        <h3 className="text-xs font-bold text-slate-700 uppercase">Turkumlar Bo'yicha Jami Nachisleniya</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {segmentTotals.map(({ segment, label, total }) => (
+            <div key={segment} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">{label}</span>
+              <div className="text-base font-black text-slate-900">{total.toLocaleString()} so'm</div>
+            </div>
+          ))}
+          <div className="p-3 bg-slate-900 rounded-xl border border-slate-900 space-y-1">
+            <span className="text-[10px] font-bold text-slate-300 uppercase">Jami (Barchasi)</span>
+            <div className="text-base font-black text-white">{totalContract.toLocaleString()} so'm</div>
+          </div>
+        </div>
+      </div>
+
       {/* Filter and Search */}
       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
@@ -92,6 +121,17 @@ export const PaymentsView: React.FC = () => {
           <option value="TOLANGAN">To'langan</option>
           <option value="QISMAN">Qisman To'langan</option>
           <option value="TOLANMAGAN">To'lanmagan (Qarzdor)</option>
+        </select>
+
+        <select
+          value={segmentFilter}
+          onChange={(e) => setSegmentFilter(e.target.value)}
+          className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 outline-none cursor-pointer"
+        >
+          <option value="ALL">Barcha Turkumlar</option>
+          {CLIENT_SEGMENTS.map(seg => (
+            <option key={seg} value={seg}>{CLIENT_SEGMENT_LABELS[seg]}</option>
+          ))}
         </select>
       </div>
 
