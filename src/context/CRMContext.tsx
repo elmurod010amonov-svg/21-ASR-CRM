@@ -1225,6 +1225,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
+    // Mijozga bog'liq barcha yozuvlarni ham o'chiramiz — aks holda ular
+    // "etim" (orphan) holida qolib, Baza Diagnostikasi skanerida doimiy
+    // kamchilik sifatida chiqaveradi va "to'g'irlash" tugmasi ham buni
+    // hal qilolmaydi (chunki avtomatik tuzatish orphan yozuvlarni o'chirmaydi,
+    // faqat mavjud mijozga bog'langanlarini yangilaydi).
+    setTaxReports(prev => prev.filter(r => r.clientId !== id));
+    setAccounting1C(prev => prev.filter(a => a.clientId !== id));
+    setPayments(prev => prev.filter(p => p.clientId !== id));
+    setReceipts(prev => prev.filter(r => r.clientId !== id));
+    setInvoices(prev => prev.filter(i => i.clientId !== id));
+    setLetters(prev => prev.filter(l => l.clientId !== id));
+    setKameral(prev => prev.filter(k => k.clientId !== id));
+    setIssues(prev => prev.filter(i => i.clientId !== id));
+    setTasks(prev => prev.filter(t => t.clientId !== id));
     logAudit('Mijoz o\'chirildi', 'Client', id, target.name, 'Mavjud', 'O\'chirildi');
   };
 

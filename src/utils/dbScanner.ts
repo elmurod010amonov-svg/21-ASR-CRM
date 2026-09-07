@@ -609,16 +609,32 @@ export function autoFixDatabase(state: DatabaseState): {
     return task;
   });
 
+  // Mijoz o'chirilgach, unga bog'liq yozuvlar "etim" (orphan) bo'lib qolishi
+  // mumkin edi (masalan mijoz o'chirilgandan keyin uning hisobotlari/
+  // to'lovlari bazada qolib ketardi). Yuqoridagi fix bosqichlari faqat
+  // MAVJUD mijozlarga bog'langan yozuvlarni yangilaydi, lekin hech qachon
+  // olib tashlamas edi — shu sababli skaner "kamchilik" deb topgan etim
+  // yozuv "to'g'irlash" bosilgandan keyin ham yo'qolmas edi. Endi bu yerda
+  // haqiqatan olib tashlanadi.
+  const pruneOrphans = <T extends { clientId: string }>(records: T[]): T[] => {
+    const kept = records.filter(r => clientMap.has(r.clientId));
+    repairedCount += records.length - kept.length;
+    return kept;
+  };
+
+  const prunedTasks = fixedTasks.filter(t => !t.clientId || clientMap.has(t.clientId));
+  repairedCount += fixedTasks.length - prunedTasks.length;
+
   return {
     fixedState: {
       clients: fixedClients,
-      taxReports: cleanedReports,
-      accounting1C: fixed1C,
-      payments: fixedPayments,
-      letters: fixedLetters,
-      kameral: fixedKameral,
-      issues: state.issues,
-      tasks: fixedTasks,
+      taxReports: pruneOrphans(cleanedReports),
+      accounting1C: pruneOrphans(fixed1C),
+      payments: pruneOrphans(fixedPayments),
+      letters: pruneOrphans(fixedLetters),
+      kameral: pruneOrphans(fixedKameral),
+      issues: pruneOrphans(state.issues),
+      tasks: prunedTasks,
       employees: fixedEmployees,
     },
     repairedCount,
