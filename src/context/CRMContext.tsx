@@ -321,6 +321,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const localEditGuardUntil = useRef(0);
   const EDIT_GUARD_WINDOW_MS = 4000;
 
+  // Server bilan sinxronlashning yagona nuqtasi — PUT so'rovi tugagunicha
+  // (muvaffaqiyatli yoki xato bilan) himoya vaqtini uzaytirib turadi. Sobit
+  // 4 soniyalik vaqt oynasiga tayanish xato edi: agar tarmoq/server sekin
+  // ishlasa (masalan Render vaqtincha sekinlashsa), PUT hali tugamasdan
+  // himoya muddati tugab, keyingi polling ESKI ma'lumotni qaytarib, endigina
+  // kiritilgan o'zgarishni (masalan yangi to'lovni) yo'qotib qo'yishi mumkin
+  // edi. Endi himoya haqiqiy yozish tugashiga bog'liq, taxminiy vaqtga emas.
+  const syncCollectionToServer = useCallback((endpoint: string, data: unknown, label: string) => {
+    return apiPut(endpoint, data)
+      .then(() => {
+        localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
+      })
+      .catch((err) => {
+        console.error(`${label} serverga saqlanmadi:`, err);
+        localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
+      });
+  }, []);
+
   const guestUser: Employee = {
     id: 'guest',
     name: 'Tashrifchi',
@@ -597,6 +615,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             message: 'Qarzdorlik akti Word shabloni serverga saqlanmadi. Fayl hajmini kichraytirib qayta yuklang.',
             linkModule: 'Sozlamalar',
           });
+        } finally {
+          localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
         }
       })();
     }, 400);
@@ -921,146 +941,146 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/clients', clients).catch(err => console.error('Mijozlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/clients', clients, 'Mijozlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [clients]);
+  }, [clients, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/employees', employees).catch(err => console.error('Xodimlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/employees', employees, 'Xodimlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [employees]);
+  }, [employees, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/periods', periods).catch(err => console.error('Davrlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/periods', periods, 'Davrlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [periods]);
+  }, [periods, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/taxReports', taxReports).catch(err => console.error('Hisobotlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/taxReports', taxReports, 'Hisobotlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [taxReports]);
+  }, [taxReports, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/accounting1C', accounting1C).catch(err => console.error('1C yozuvlari serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/accounting1C', accounting1C, '1C yozuvlari');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [accounting1C]);
+  }, [accounting1C, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/payments', payments).catch(err => console.error('To\'lovlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/payments', payments, 'To\'lovlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [payments]);
+  }, [payments, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/receipts', receipts).catch(err => console.error('Cheklar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/receipts', receipts, 'Cheklar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [receipts]);
+  }, [receipts, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/invoices', invoices).catch(err => console.error('Fakturalar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/invoices', invoices, 'Fakturalar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [invoices]);
+  }, [invoices, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/letters', letters).catch(err => console.error('Xatlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/letters', letters, 'Xatlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [letters]);
+  }, [letters, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/kameral', kameral).catch(err => console.error('Kameral tekshiruvlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/kameral', kameral, 'Kameral tekshiruvlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [kameral]);
+  }, [kameral, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/issues', issues).catch(err => console.error('Kamchiliklar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/issues', issues, 'Kamchiliklar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [issues]);
+  }, [issues, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/tasks', tasks).catch(err => console.error('Topshiriqlar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/tasks', tasks, 'Topshiriqlar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [tasks]);
+  }, [tasks, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/reminders', reminders).catch(err => console.error('Eslatmalar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/reminders', reminders, 'Eslatmalar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [reminders]);
+  }, [reminders, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/chatRooms', chatRooms).catch(err => console.error('Chat xonalari serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/chatRooms', chatRooms, 'Chat xonalari');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [chatRooms]);
+  }, [chatRooms, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/chatMessages', chatMessages).catch(err => console.error('Chat xabarlari serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/chatMessages', chatMessages, 'Chat xabarlari');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [chatMessages]);
+  }, [chatMessages, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/auditLogs', auditLogs).catch(err => console.error('Audit jurnali serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/auditLogs', auditLogs, 'Audit jurnali');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [auditLogs]);
+  }, [auditLogs, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/notifications', notifications).catch(err => console.error('Bildirishnomalar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/notifications', notifications, 'Bildirishnomalar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [notifications]);
+  }, [notifications, syncCollectionToServer]);
 
   useEffect(() => {
     if (!coreDataHydrated.current) return;
     const timer = window.setTimeout(() => {
-      apiPut('/api/gifts', gifts).catch(err => console.error('Sovg\'alar serverga saqlanmadi:', err));
+      syncCollectionToServer('/api/gifts', gifts, 'Sovg\'alar');
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [gifts]);
+  }, [gifts, syncCollectionToServer]);
 
   useEffect(() => {
     localStorage.setItem(`${REAL_STORAGE_PREFIX}_taxReports`, JSON.stringify(taxReports));
