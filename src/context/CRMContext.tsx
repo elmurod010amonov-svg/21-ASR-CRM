@@ -258,6 +258,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // birinchi marta yuklab olinmagunicha clients/employees'ni serverga qayta
   // yozib yubormaslik uchun.
   const coreDataHydrated = useRef(false);
+  // Yaqinda lokal o'zgarish bo'lganda pollingni vaqtincha "jim" qilib turadi —
+  // aks holda poyga sharoiti (race condition) yuzaga kelishi mumkin edi: agar
+  // polling so'rovi allaqachon yo'lda bo'lsa-yu, shu payt foydalanuvchi biror
+  // narsani o'zgartirsa, keyin polling'ning ESKI javobi kech kelib, yangi
+  // o'zgarishning ustidan yozib yuborar edi (masalan "to'g'irlash" tugmasini
+  // bosgandan keyin ma'lumot darrov eski holatiga qaytib qolishi shu sabab edi).
+  const localEditGuardUntil = useRef(0);
+  const EDIT_GUARD_WINDOW_MS = 4000;
 
   const guestUser: Employee = {
     id: 'guest',
@@ -656,6 +664,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const pollOnce = async () => {
       if (!coreDataHydrated.current || cancelled) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      // So'rov boshlanishidan oldin yaqinda lokal o'zgarish bo'lgan bo'lsa —
+      // bu siklni butunlay o'tkazib yuboramiz (keyingi poll bir necha soniyadan
+      // keyin bo'ladi, hech narsa yo'qolmaydi).
+      if (Date.now() < localEditGuardUntil.current) return;
       try {
         const [
           serverClients, serverEmployees, serverPeriods, serverTaxReports, serverAccounting1C,
@@ -664,6 +676,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           serverAuditLogs, serverNotifications, serverGifts,
         ] = await fetchSharedData();
         if (cancelled) return;
+        // So'rov davomida (javob kutilayotganda) lokal o'zgarish sodir bo'lgan
+        // bo'lishi mumkin — bu holda ESKI (so'rov boshlangandagi) javobni
+        // qo'llamaymiz, aks holda yangi o'zgarishni ustidan yozib yuborardi.
+        if (Date.now() < localEditGuardUntil.current) return;
 
         setClients(prev => sameJson(prev, serverClients) ? prev : serverClients);
         setEmployees(prev => sameJson(prev, serverEmployees) ? prev : serverEmployees);
@@ -718,6 +734,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [fetchSharedData]);
+
+  // Ushbu 19 ta umumiy holatdan BIRI o'zgarganda ham — pollingni bir necha
+  // soniyaga "jim" qilamiz (localEditGuardUntil), toki debounce+PUT to'liq
+  // yakunlanguncha eski server javobi bu yangi o'zgarishni ustidan yozib
+  // yubormasin.
+  useEffect(() => {
+    localEditGuardUntil.current = Date.now() + EDIT_GUARD_WINDOW_MS;
+  }, [
+    clients, employees, periods, taxReports, accounting1C, payments, receipts,
+    invoices, letters, kameral, issues, tasks, reminders, chatRooms,
+    chatMessages, auditLogs, notifications, gifts, debtActTemplateFile,
+  ]);
 
   // Har qanday o'zgarishdan keyin (yangi mijoz, tahrirlash, xodimga sovg'a
   // berish va h.k.) butun massivni serverga sinxronlaymiz — hydratsiya
