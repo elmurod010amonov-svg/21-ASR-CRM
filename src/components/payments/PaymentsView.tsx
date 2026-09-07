@@ -5,7 +5,7 @@ import { CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS, getClientSegment } from '../../
 import { buildDebtorsListDocx, downloadBlob, DebtorRow } from '../../utils/debtActDocx';
 
 export const PaymentsView: React.FC = () => {
-  const { payments, clients, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct, logAudit } = useCRM();
+  const { payments, clients, recordPayment, updatePayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct, logAudit } = useCRM();
   const canGenerateAct = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR';
   const canManagePayments = currentUser.role === 'KASSIR' || currentUser.role === 'SUPER_ADMIN';
   const [search, setSearch] = useState('');
@@ -14,6 +14,11 @@ export const PaymentsView: React.FC = () => {
   const [payAmount, setPayAmount] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<string>('ALL');
+  // Allaqachon kiritilgan (to'langan) summani to'g'ridan-to'g'ri tuzatish
+  // uchun — "+ To'lov" dan farqli o'laroq bu QO'SHMAYDI, aniq yangi qiymatga
+  // O'RNATADI (masalan xato kiritilgan summani tuzatish uchun).
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPaidAmount, setEditPaidAmount] = useState('');
 
   const totalContract = payments.reduce((acc, p) => acc + p.monthlyFee, 0);
   const totalPaid = payments.reduce((acc, p) => acc + p.paidAmount, 0);
@@ -71,6 +76,25 @@ export const PaymentsView: React.FC = () => {
     setSelectedClientForPay(null);
     setPayAmount('');
     setPayNotes('');
+  };
+
+  const startEditPayment = (paymentId: string, currentPaidAmount: number) => {
+    setEditingPaymentId(paymentId);
+    setEditPaidAmount(String(currentPaidAmount));
+  };
+
+  const handleEditPaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPaymentId) return;
+    const newPaidAmount = parseInt(editPaidAmount.replace(/\D/g, ''), 10);
+    if (isNaN(newPaidAmount) || newPaidAmount < 0) return;
+    const payment = payments.find(p => p.id === editingPaymentId);
+    if (!payment) return;
+    const newDebt = Math.max(0, payment.monthlyFee - newPaidAmount);
+    const newStatus = newDebt === 0 ? 'TOLANGAN' : newPaidAmount > 0 ? 'QISMAN' : 'TOLANMAGAN';
+    updatePayment(editingPaymentId, { paidAmount: newPaidAmount, debtAmount: newDebt, status: newStatus });
+    setEditingPaymentId(null);
+    setEditPaidAmount('');
   };
 
   return (
@@ -246,6 +270,15 @@ export const PaymentsView: React.FC = () => {
                       >
                         + To'lov
                       </button>
+                      {currentUser.role === 'SUPER_ADMIN' && (
+                        <button
+                          onClick={() => startEditPayment(item.id, item.paidAmount)}
+                          className="px-3 py-1 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs"
+                          title="To'langan summani to'g'ridan-to'g'ri tuzatish (qo'shmaydi, aniq qiymatga o'rnatadi)"
+                        >
+                          Tahrirlash
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -296,6 +329,46 @@ export const PaymentsView: React.FC = () => {
                   className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
                 >
                   Tasdiqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Existing Paid Amount Modal (Super Admin only) */}
+      {editingPaymentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+            <h3 className="font-extrabold text-slate-900 text-sm">To'langan Summani Tahrirlash</h3>
+            <p className="text-[11px] text-slate-500">
+              Bu yerda kiritilgan summa mavjud to'lovga QO'SHILMAYDI — to'langan summani aniq shu qiymatga o'rnatadi.
+            </p>
+            <form onSubmit={handleEditPaymentSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-600 mb-1 font-bold">To'langan summa (so'm):</label>
+                <input
+                  type="number"
+                  value={editPaidAmount}
+                  onChange={(e) => setEditPaidAmount(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-xl font-bold text-slate-900 outline-none focus:border-emerald-600"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPaymentId(null)}
+                  className="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-slate-800 text-white font-bold hover:bg-slate-900 cursor-pointer"
+                >
+                  Saqlash
                 </button>
               </div>
             </form>
