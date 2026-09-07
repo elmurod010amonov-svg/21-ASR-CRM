@@ -121,8 +121,14 @@ export const ReportsView: React.FC = () => {
 
       // Latest submitted date
       const submittedReports = activeReports.filter(r => r.submittedAt);
-      const latestSubmission = submittedReports.length > 0 
-        ? submittedReports[submittedReports.length - 1].submittedAt 
+      const latestSubmission = submittedReports.length > 0
+        ? submittedReports[submittedReports.length - 1].submittedAt
+        : null;
+      // Hisobotni haqiqatan kim topshirgani — statik "mas'ul buxgalter"dan
+      // farqli o'laroq, bu har bir "Topshirildi" belgilashda o'sha amalni
+      // bajargan xodimning ismi bilan avtomatik yoziladi.
+      const lastSubmittedBy = submittedReports.length > 0
+        ? submittedReports[submittedReports.length - 1].submittedBy || null
         : null;
 
       return {
@@ -137,6 +143,7 @@ export const ReportsView: React.FC = () => {
         overallStatus,
         accountantName: accountant?.name || client.accountantName || 'Tayinlanmagan',
         latestSubmission,
+        lastSubmittedBy,
       };
     });
   }, [clients, taxReports, employees]);
@@ -474,6 +481,7 @@ export const ReportsView: React.FC = () => {
                     overallStatus,
                     accountantName,
                     latestSubmission,
+                    lastSubmittedBy,
                   }) => {
                     const isExpanded = !!expandedClientIds[client.id];
                     const allSubmitted = totalCount > 0 && submittedCount === totalCount;
@@ -614,6 +622,11 @@ export const ReportsView: React.FC = () => {
                               <User className="w-3.5 h-3.5 text-slate-600" />
                               <span>{accountantName}</span>
                             </div>
+                            {lastSubmittedBy && (
+                              <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                                Topshirgan: {lastSubmittedBy}
+                              </div>
+                            )}
                           </td>
 
                           {/* Latest Submission */}

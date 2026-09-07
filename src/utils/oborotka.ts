@@ -15,7 +15,7 @@ export function getTodayISO(): string {
 /** 1C nazoratiga tortiladigan minimal oylik to'lov chegarasi — shundan past mijozlar 1C bo'limida shakllanmaydi */
 export const ONE_C_MIN_MONTHLY_FEE = 1_000_000;
 
-/** Mijoz 1C nazoratiga tortiladimi — oylik to'lovi shu chegaradan yuqori bo'lsagina */
+/** Mijoz 1C nazoratiga tortiladimi — oylik to'lovi shu chegaradan boshlab (shu summa ham kiradi) */
 export function isSubjectTo1C(monthlyFee: number): boolean {
-  return monthlyFee > ONE_C_MIN_MONTHLY_FEE;
+  return monthlyFee >= ONE_C_MIN_MONTHLY_FEE;
 }

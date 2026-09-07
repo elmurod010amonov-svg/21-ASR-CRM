@@ -64,7 +64,7 @@ export const Accounting1CView: React.FC = () => {
             Oborotka kiritilganda muddat sanasi belgilanadi — shu sanagacha «Topshirilgan» ko‘rinadi
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Faqat oylik to'lovi {ONE_C_MIN_MONTHLY_FEE.toLocaleString()} so'mdan yuqori mijozlar shu ro'yxatda shakllanadi
+            Faqat oylik to'lovi {ONE_C_MIN_MONTHLY_FEE.toLocaleString()} so'mdan boshlab (shu summa ham kiradi) mijozlar shu ro'yxatda shakllanadi
           </p>
         </div>
       </div>

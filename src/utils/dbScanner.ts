@@ -14,6 +14,7 @@ import {
   DatabaseScanIssue,
   DatabaseScanResult
 } from '../types';
+import { isSubjectTo1C } from './oborotka';
 
 export interface DatabaseState {
   clients: Client[];
@@ -161,10 +162,10 @@ export function scanDatabase(state: DatabaseState): DatabaseScanResult {
     }
   });
 
-  // 3. Scan 1C & Invoices Records — faqat oylik to'lovi 1 000 000 so'mdan yuqori mijozlar 1C nazoratiga tortiladi
+  // 3. Scan 1C & Invoices Records — faqat oylik to'lovi 1 000 000 so'mdan boshlab (shu summa ham kiradi) mijozlar 1C nazoratiga tortiladi
   const ac1CClientIds = new Set(accounting1C.map(a => a.clientId));
   clients.forEach(client => {
-    if (client.status === 'ACTIVE' && client.monthlyFee > 1_000_000 && !ac1CClientIds.has(client.id)) {
+    if (client.status === 'ACTIVE' && isSubjectTo1C(client.monthlyFee) && !ac1CClientIds.has(client.id)) {
       issues.push({
         id: `issue-missing-1c-${client.id}`,
         category: '1C',
@@ -467,10 +468,10 @@ export function autoFixDatabase(state: DatabaseState): {
     return r;
   });
 
-  // 3. Fix & Generate 1C Records — faqat oylik to'lovi 1 000 000 so'mdan yuqori mijozlar uchun
+  // 3. Fix & Generate 1C Records — faqat oylik to'lovi 1 000 000 so'mdan boshlab (shu summa ham kiradi) mijozlar uchun
   const fixed1C = [...state.accounting1C];
   fixedClients.forEach(c => {
-    if (c.monthlyFee <= 1_000_000) return;
+    if (!isSubjectTo1C(c.monthlyFee)) return;
     const existingIndex = fixed1C.findIndex(a => a.clientId === c.id);
     if (existingIndex === -1) {
       fixed1C.push({
