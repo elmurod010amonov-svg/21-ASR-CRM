@@ -102,8 +102,9 @@ export const Sidebar: React.FC = () => {
 
   // NAZORATCHI DIREKTOR bilan bir xil funksiyalarga ega bo'lishi kerak
   const canViewRestrictedAdminSections = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role || '');
-  // To'lovlar bo'limi faqat rahbariyat (Direktor/Super Admin/Nazoratchi) uchun ko'rinadi
-  const canViewPayments = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI'].includes(currentUser.role || '');
+  // To'lovlar bo'limi rahbariyat (Direktor/Super Admin/Nazoratchi) va
+  // to'lovlarni bevosita kirituvchi Kassir uchun ko'rinadi
+  const canViewPayments = ['SUPER_ADMIN', 'DIREKTOR', 'NAZORATCHI', 'KASSIR'].includes(currentUser.role || '');
   const visibleMenuItems = menuItems.filter(item => {
     if (!canViewRestrictedAdminSections && ['Xodimlar', 'Sozlamalar', 'Audit Log'].includes(item.id)) return false;
     if (!canViewPayments && item.id === 'To‘lovlar') return false;
