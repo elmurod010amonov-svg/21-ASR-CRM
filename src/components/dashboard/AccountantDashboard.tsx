@@ -31,22 +31,21 @@ export const AccountantDashboard: React.FC = () => {
     setActiveTab
   } = useCRM();
 
-  // Filter only items assigned to current logged-in accountant
-  const myClients = clients.filter(c => c.accountantId === currentUser.id);
-  const myClientIds = myClients.map(c => c.id);
+  // Mijozlar bitta buxgalterga emas, balki barcha xodimlarga umumiy — shuning
+  // uchun bu yerda "faqat menga biriktirilgan" cheklovi olib tashlandi,
+  // Dashboard endi tashkilot bo'yicha barcha mijozlar/hisobotlarni ko'rsatadi.
+  const myClients = clients;
   const myYattClients = myClients.filter(c => c.type === 'YATT').length;
   const myYuridikClients = myClients.filter(c => c.type === 'YURIDIK').length;
   const myYuridikSharePct = myClients.length > 0 ? Math.round((myYuridikClients / myClients.length) * 100) : 0;
 
-  const myReports = taxReports.filter(r => myClientIds.includes(r.clientId) || r.accountantId === currentUser.id);
+  const myReports = taxReports;
   const myPendingReports = myReports.filter(r => r.status === 'TOPSHIRILMAGAN');
   const myInProgressReports = myReports.filter(r => r.status === 'JARAYONDA');
   const mySubmittedReports = myReports.filter(r => r.status === 'TOPSHIRILDI');
   const myReportsPct = myReports.length > 0 ? Math.round((mySubmittedReports.length / myReports.length) * 100) : 100;
 
   const my1C = accounting1C.filter(a => {
-    const matchesMine = myClientIds.includes(a.clientId) || a.accountantId === currentUser.id;
-    if (!matchesMine) return false;
     const client = clients.find(c => c.id === a.clientId);
     return client ? isSubjectTo1C(client.monthlyFee) : false;
   });
@@ -54,7 +53,7 @@ export const AccountantDashboard: React.FC = () => {
   const myEntered1C = my1C.filter(a => isOborotkaActive(a));
   const my1CPct = my1C.length > 0 ? Math.round((myEntered1C.length / my1C.length) * 100) : 100;
 
-  const myLetters = letters.filter(l => myClientIds.includes(l.clientId) || l.accountantId === currentUser.id);
+  const myLetters = letters;
   const myNewLetters = myLetters.filter(l => l.status === 'YANGI');
 
   const myTasks = tasks.filter(t => t.assigneeIds.includes(currentUser.id) && t.status !== 'BAJARILDI');
@@ -77,7 +76,7 @@ export const AccountantDashboard: React.FC = () => {
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Xush kelibsiz, {currentUser.name}!</h1>
           <p className="text-xs font-extrabold text-slate-800">
-            Sizga biriktirilgan <strong className="text-slate-900">{myClients.length} ta mijoz</strong> bo'yicha hisobotlar <strong className="text-emerald-600 font-mono">{myReportsPct}%</strong> topshirildi. <strong className="text-slate-900">15-avgust</strong> deadlinega qadar <strong className="text-rose-600 font-mono">{myPendingReports.length} ta hisobot</strong> qoldi.
+            Tashkilotdagi <strong className="text-slate-900">{myClients.length} ta mijoz</strong> bo'yicha hisobotlar <strong className="text-emerald-600 font-mono">{myReportsPct}%</strong> topshirildi. <strong className="text-slate-900">15-avgust</strong> deadlinega qadar <strong className="text-rose-600 font-mono">{myPendingReports.length} ta hisobot</strong> qoldi.
           </p>
         </div>
 
@@ -371,7 +370,7 @@ export const AccountantDashboard: React.FC = () => {
 
       {/* My Assigned Clients List Strip */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 space-y-2.5">
-        <h3 className="font-bold text-slate-900 text-xs">Mening Mijozlarim Ro'yxati ({myClients.length})</h3>
+        <h3 className="font-bold text-slate-900 text-xs">Barcha Mijozlar Ro'yxati ({myClients.length})</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
           {myClients.map((c) => (
             <div

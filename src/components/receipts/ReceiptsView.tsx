@@ -4,13 +4,12 @@ import { useCRM } from '../../context/CRMContext';
 import { getTodayISO } from '../../utils/oborotka';
 
 export const ReceiptsView: React.FC = () => {
-  const { clients, receipts, addReceipt, updateReceipt, deleteReceipt, openClientCard, currentUser } = useCRM();
+  const { clients, receipts, addReceipt, updateReceipt, deleteReceipt, openClientCard } = useCRM();
 
-  const isAccountant = currentUser.role === 'BUXGALTER';
-  const myClientIds = isAccountant ? clients.filter(c => c.accountantId === currentUser.id).map(c => c.id) : null;
-
-  const scopedClients = myClientIds ? clients.filter(c => myClientIds.includes(c.id)) : clients;
-  const scopedReceipts = myClientIds ? receipts.filter(r => myClientIds.includes(r.clientId)) : receipts;
+  // Mijozlar bitta buxgalterga emas, balki barcha xodimlarga umumiy — shuning
+  // uchun har bir xodim (roli qat'iy nazar) barcha mijozlar/cheklarni ko'radi.
+  const scopedClients = clients;
+  const scopedReceipts = receipts;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState('');

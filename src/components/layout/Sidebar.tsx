@@ -40,34 +40,35 @@ export const Sidebar: React.FC = () => {
     chatRooms
   } = useCRM();
 
-  // Dynamic badges calculation based on current user role (if accountant, show their pending items, else global)
+  // Mijozlar endi bitta buxgalterga emas, balki barcha xodimlarga umumiy —
+  // shuning uchun bildirishnoma sonlari ham "mas'ul buxgalter"ga qarab
+  // cheklanmaydi, hamma uchun bir xil (tashkilot bo'yicha umumiy) ko'rsatiladi.
   const isAccountant = currentUser.role === 'BUXGALTER';
-  
-  const pendingReportsCount = taxReports.filter(r => 
-    r.status === 'TOPSHIRILMAGAN' && (!isAccountant || r.accountantId === currentUser.id)
+
+  const pendingReportsCount = taxReports.filter(r =>
+    r.status === 'TOPSHIRILMAGAN'
   ).length;
 
-  const unreadLettersCount = letters.filter(l => 
-    (l.status === 'YANGI' || l.status === 'JAVOB_KUTILMOQDA') && (!isAccountant || l.accountantId === currentUser.id)
+  const unreadLettersCount = letters.filter(l =>
+    (l.status === 'YANGI' || l.status === 'JAVOB_KUTILMOQDA')
   ).length;
 
   const pending1CCount = accounting1C.filter(a => {
     if (isOborotkaActive(a)) return false;
-    if (isAccountant && a.accountantId !== currentUser.id) return false;
     const client = clients.find(c => c.id === a.clientId);
     return client ? isSubjectTo1C(client.monthlyFee) : false;
   }).length;
 
-  const debtPaymentsCount = payments.filter(p => 
-    p.status === 'TOLANMAGAN' && (!isAccountant || p.accountantId === currentUser.id)
+  const debtPaymentsCount = payments.filter(p =>
+    p.status === 'TOLANMAGAN'
   ).length;
 
-  const activeKameralCount = kameral.filter(k => 
-    (k.status === 'OCHIQ' || k.status === 'KAMCHILIK_ANIQLANDI') && (!isAccountant || k.accountantId === currentUser.id)
+  const activeKameralCount = kameral.filter(k =>
+    (k.status === 'OCHIQ' || k.status === 'KAMCHILIK_ANIQLANDI')
   ).length;
 
-  const openIssuesCount = issues.filter(i => 
-    i.status === 'OCHIQ' && (!isAccountant || i.accountantId === currentUser.id)
+  const openIssuesCount = issues.filter(i =>
+    i.status === 'OCHIQ'
   ).length;
 
   const pendingTasksCount = tasks.filter(t => {
