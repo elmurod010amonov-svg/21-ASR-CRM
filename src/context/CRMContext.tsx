@@ -415,7 +415,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadData('gifts', [])
   );
 
-  const [activeTab, setActiveTab] = useState<string>('Dashboard');
+  // Sahifa yangilanganda (F5) foydalanuvchi turgan bo'limida qolishi uchun —
+  // oxirgi ochiq bo'lim localStorage'da saqlanadi va shu yerdan tiklanadi.
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    try {
+      return localStorage.getItem('21ASR_ACTIVE_TAB') || 'Dashboard';
+    } catch (e) {
+      return 'Dashboard';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('21ASR_ACTIVE_TAB', activeTab);
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [activeTab]);
   const [selectedClientIdForModal, setSelectedClientIdForModal] = useState<string | null>(null);
   const [pendingChatRoomId, setPendingChatRoomId] = useState<string | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState<boolean>(false);

@@ -213,28 +213,40 @@ export const ReportsView: React.FC = () => {
       return;
     }
 
-    const rows = nonSubmitted.map((r, idx) => {
-      const client = clients.find(c => c.id === r.clientId);
-      const accountant = employees.find(e => e.id === r.accountantId);
+    // Bir mijozning bir nechta topshirilmagan hisobot shakli bo'lishi mumkin
+    // (masalan AYLANMA + JSHDS + INPS) — har birini alohida qatorga
+    // chiqarish o'rniga, mijoz bo'yicha guruhlab, bitta qatorda barcha
+    // topshirilmagan shakllarni birgalikda ko'rsatamiz.
+    const groupedByClient = new Map<string, typeof nonSubmitted>();
+    nonSubmitted.forEach(r => {
+      const list = groupedByClient.get(r.clientId) || [];
+      list.push(r);
+      groupedByClient.set(r.clientId, list);
+    });
+
+    const rows = Array.from(groupedByClient.values()).map((reports, idx) => {
+      const first = reports[0];
+      const client = clients.find(c => c.id === first.clientId);
+      const accountant = employees.find(e => e.id === first.accountantId);
       return {
         '№': idx + 1,
-        'Mijoz nomi': r.clientName,
-        'STIR/JSHSHR': r.stir,
+        'Mijoz nomi': first.clientName,
+        'STIR/JSHSHR': first.stir,
         'Turi': client?.type || '',
-        'Hisobot shakli': r.reportType,
+        'Hisobot shakli': reports.map(r => r.reportType).join(', '),
         'Davr': currentPeriod.name,
         "Mas'ul buxgalter": accountant?.name || client?.accountantName || 'Tayinlanmagan',
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 24 }];
+    worksheet['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 24 }, { wch: 16 }, { wch: 24 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Topshirilmaganlar');
     const fileName = `Topshirilmagan_Hisobotlar_${currentPeriod.name.replace(/\s+/g, '_')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
 
-    logAudit('Topshirilmagan hisobotlar ro\'yxati yuklab olindi', 'Report', 'ALL', `${nonSubmitted.length} ta hisobot (${currentPeriod.name})`);
+    logAudit('Topshirilmagan hisobotlar ro\'yxati yuklab olindi', 'Report', 'ALL', `${rows.length} ta mijoz, ${nonSubmitted.length} ta hisobot (${currentPeriod.name})`);
   };
 
   return (
