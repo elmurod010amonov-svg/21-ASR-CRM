@@ -221,6 +221,31 @@ const REAL_STORAGE_PREFIX = '21ASR_CRM_REAL_V3';
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const SHARED_DATA_POLL_INTERVAL_MS = 5000;
 
+// Birinchi marta hydratsiya qilinganda — agar SERVER bo'sh bo'lsa-yu, shu
+// brauzerning LOKAL keshida (localStorage'da) haqiqiy ma'lumot bo'lsa, buni
+// "hali hech narsa yo'q" deb hisoblab lokal ma'lumotni bo'sh server holati
+// bilan ustidan yozib yubormaymiz — aksincha, lokal ma'lumotni birinchi
+// marta serverga yuklaymiz (migratsiya). Faqat shu tarzda oldingi kunlarda
+// har bir xodimning brauzerida to'plangan ma'lumot yo'qolib ketmaydi.
+async function adoptServerOrMigrateLocal<T>(
+  localArr: T[],
+  serverArr: T[],
+  endpoint: string,
+  setter: (v: T[]) => void,
+  label: string
+): Promise<void> {
+  if (serverArr.length === 0 && localArr.length > 0) {
+    console.warn(`${label}: server bo'sh, lekin lokalda ${localArr.length} ta yozuv bor — serverga ko'chirilmoqda (migratsiya).`);
+    try {
+      await apiPut(endpoint, localArr);
+    } catch (err) {
+      console.error(`${label} serverga ko'chirilmadi:`, err);
+    }
+    return;
+  }
+  setter(serverArr);
+}
+
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isScannerModalOpen, setIsScannerModalOpen] = useState<boolean>(false);
   const [scanResult, setScanResult] = useState<DatabaseScanResult | null>(null);
@@ -593,24 +618,26 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           serverAuditLogs, serverNotifications, serverGifts,
         ] = await fetchSharedData();
         if (cancelled) return;
-        setClients(serverClients);
-        setEmployees(serverEmployees);
-        setPeriods(serverPeriods);
-        setTaxReports(serverTaxReports);
-        setAccounting1C(serverAccounting1C);
-        setPayments(serverPayments);
-        setReceipts(serverReceipts);
-        setInvoices(serverInvoices);
-        setLetters(serverLetters);
-        setKameral(serverKameral);
-        setIssues(serverIssues);
-        setTasks(serverTasks);
-        setReminders(serverReminders);
-        setChatRooms(serverChatRooms);
-        setChatMessages(serverChatMessages);
-        setAuditLogs(serverAuditLogs);
-        setNotifications(serverNotifications);
-        setGifts(serverGifts);
+        await Promise.all([
+          adoptServerOrMigrateLocal(clients, serverClients, '/api/clients', setClients, 'Mijozlar'),
+          adoptServerOrMigrateLocal(employees, serverEmployees, '/api/employees', setEmployees, 'Xodimlar'),
+          adoptServerOrMigrateLocal(periods, serverPeriods, '/api/periods', setPeriods, 'Davrlar'),
+          adoptServerOrMigrateLocal(taxReports, serverTaxReports, '/api/taxReports', setTaxReports, 'Hisobotlar'),
+          adoptServerOrMigrateLocal(accounting1C, serverAccounting1C, '/api/accounting1C', setAccounting1C, '1C yozuvlari'),
+          adoptServerOrMigrateLocal(payments, serverPayments, '/api/payments', setPayments, 'To\'lovlar'),
+          adoptServerOrMigrateLocal(receipts, serverReceipts, '/api/receipts', setReceipts, 'Cheklar'),
+          adoptServerOrMigrateLocal(invoices, serverInvoices, '/api/invoices', setInvoices, 'Fakturalar'),
+          adoptServerOrMigrateLocal(letters, serverLetters, '/api/letters', setLetters, 'Xatlar'),
+          adoptServerOrMigrateLocal(kameral, serverKameral, '/api/kameral', setKameral, 'Kameral'),
+          adoptServerOrMigrateLocal(issues, serverIssues, '/api/issues', setIssues, 'Kamchiliklar'),
+          adoptServerOrMigrateLocal(tasks, serverTasks, '/api/tasks', setTasks, 'Topshiriqlar'),
+          adoptServerOrMigrateLocal(reminders, serverReminders, '/api/reminders', setReminders, 'Eslatmalar'),
+          adoptServerOrMigrateLocal(chatRooms, serverChatRooms, '/api/chatRooms', setChatRooms, 'Chat xonalari'),
+          adoptServerOrMigrateLocal(chatMessages, serverChatMessages, '/api/chatMessages', setChatMessages, 'Chat xabarlari'),
+          adoptServerOrMigrateLocal(auditLogs, serverAuditLogs, '/api/auditLogs', setAuditLogs, 'Audit jurnali'),
+          adoptServerOrMigrateLocal(notifications, serverNotifications, '/api/notifications', setNotifications, 'Bildirishnomalar'),
+          adoptServerOrMigrateLocal(gifts, serverGifts, '/api/gifts', setGifts, 'Sovg\'alar'),
+        ]);
         // Joriy foydalanuvchini eng yangi ma'lumot bilan yangilaymiz (roli/ruxsatlari
         // o'zgargan bo'lishi mumkin), agar hali ham mavjud bo'lsa
         setCurrentUser(prev => {
