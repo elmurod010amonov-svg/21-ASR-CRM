@@ -481,6 +481,88 @@ export async function buildCombinedDebtActDocx(rows: DebtActValues[], sana: stri
   return Packer.toBlob(doc);
 }
 
+export type DebtorRow = {
+  name: string;
+  stir: string;
+  phone: string;
+  accountantName: string;
+  monthlyFee: string;
+  paid: string;
+  debt: string;
+};
+
+/**
+ * To'lovlar bo'limidan — hisobot holatidan qat'iy nazar, qarzdorligi bor
+ * BARCHA mijozlarning oddiy ro'yxati (rasmiy "Akt" emas, ichki hisobot).
+ */
+export async function buildDebtorsListDocx(rows: DebtorRow[], sana: string, totalDebt: string): Promise<Blob> {
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: ORG_NAME, bold: true, font: FONT, size: 26, color: '1F4E79' })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+            children: [new TextRun({ text: `Manzil: ${ORG_ADDRESS}`, font: FONT, size: 20 })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: 'QARZDORLAR RO\'YXATI', bold: true, font: FONT, size: 24 })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+            children: [new TextRun({ text: `Holat: ${sana} yil`, italics: true, font: FONT, size: 20 })],
+          }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  actHeaderCell('№'),
+                  actHeaderCell('Korxona / YaTT nomi'),
+                  actHeaderCell('STIR/JSHSHR'),
+                  actHeaderCell('Telefon'),
+                  actHeaderCell("Mas'ul xodim"),
+                  actHeaderCell('Oylik to\'lov'),
+                  actHeaderCell("To'langan"),
+                  actHeaderCell('Qarzdorlik'),
+                ],
+              }),
+              ...rows.map((r, idx) => new TableRow({
+                children: [
+                  actBodyCell(String(idx + 1)),
+                  actBodyCell(r.name),
+                  actBodyCell(r.stir),
+                  actBodyCell(r.phone),
+                  actBodyCell(r.accountantName),
+                  actBodyCell(r.monthlyFee),
+                  actBodyCell(r.paid),
+                  actBodyCell(r.debt),
+                ],
+              })),
+            ],
+          }),
+          new Paragraph({ text: '', spacing: { after: 200 } }),
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [
+              new TextRun({ text: `Jami qarzdorlik (${rows.length} ta mijoz): `, bold: true, font: FONT, size: 22 }),
+              new TextRun({ text: totalDebt, bold: true, font: FONT, size: 22, color: 'B91C1C' }),
+            ],
+          }),
+        ],
+      },
+    ],
+  });
+
+  return Packer.toBlob(doc);
+}
+
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);

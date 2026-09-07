@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowUpRight, Download } from 'lucide-react';
+import { CreditCard, Search, Plus, CheckCircle2, AlertCircle, DollarSign, ArrowUpRight, Download, FileText } from 'lucide-react';
 import { useCRM } from '../../context/CRMContext';
 import { CLIENT_SEGMENTS, CLIENT_SEGMENT_LABELS, getClientSegment } from '../../types';
+import { buildDebtorsListDocx, downloadBlob, DebtorRow } from '../../utils/debtActDocx';
 
 export const PaymentsView: React.FC = () => {
-  const { payments, clients, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct } = useCRM();
+  const { payments, clients, recordPayment, openClientCard, currentUser, generateDebtAct, generateCombinedDebtAct, logAudit } = useCRM();
   const canGenerateAct = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'KASSIR';
   const canManagePayments = currentUser.role === 'KASSIR';
   const [search, setSearch] = useState('');
@@ -34,6 +35,33 @@ export const PaymentsView: React.FC = () => {
     return matchesSearch && matchesStatus && matchesSegment;
   });
 
+  // Hisobot holatidan qat'iy nazar — qarzdorligi bor BARCHA mijozlarning
+  // oddiy ro'yxatini Word (.docx) faylida yuklab olish.
+  const handleExportDebtorsList = async () => {
+    const debtors = payments.filter(p => p.debtAmount > 0);
+    if (debtors.length === 0) {
+      alert("Hozircha qarzdor mijoz yo'q.");
+      return;
+    }
+    const rows: DebtorRow[] = debtors.map(p => {
+      const client = clients.find(c => c.id === p.clientId);
+      return {
+        name: p.clientName,
+        stir: p.stir,
+        phone: client?.phone || '',
+        accountantName: client?.accountantName || 'Belgilanmagan',
+        monthlyFee: `${p.monthlyFee.toLocaleString('uz-UZ')} so'm`,
+        paid: `${p.paidAmount.toLocaleString('uz-UZ')} so'm`,
+        debt: `${p.debtAmount.toLocaleString('uz-UZ')} so'm`,
+      };
+    });
+    const totalDebtSum = debtors.reduce((acc, p) => acc + p.debtAmount, 0);
+    const today = new Date().toLocaleDateString('uz-UZ');
+    const blob = await buildDebtorsListDocx(rows, today, `${totalDebtSum.toLocaleString('uz-UZ')} so'm`);
+    downloadBlob(blob, `Qarzdorlar_Royxati_${today.replace(/\./g, '-')}.docx`);
+    logAudit('Qarzdorlar ro\'yxati yuklab olindi', 'Payment', 'ALL', `${rows.length} ta qarzdor mijoz`);
+  };
+
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientForPay) return;
@@ -53,14 +81,24 @@ export const PaymentsView: React.FC = () => {
           <p className="text-xs text-slate-600">Mijozlar bilan tuzilgan shartnoma bo'yicha oylik to'lovlar intizomi</p>
         </div>
         {canGenerateAct && (
-          <button
-            onClick={() => generateCombinedDebtAct()}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs shrink-0"
-            title="Qarzdorligi bor va hisobot topshirmagan barcha Yuridik/YaTT mijozlar uchun bitta Word faylida umumiy akt"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Umumiy Akt (Barcha Qarzdorlar)
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={handleExportDebtorsList}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs"
+              title="Hisobot holatidan qat'iy nazar, qarzdorligi bor BARCHA mijozlarning oddiy ro'yxati (Word)"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Qarzdorlar Ro'yxati (Word)
+            </button>
+            <button
+              onClick={() => generateCombinedDebtAct()}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs"
+              title="Qarzdorligi bor va hisobot topshirmagan barcha Yuridik/YaTT mijozlar uchun bitta Word faylida umumiy akt"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Umumiy Akt (Barcha Qarzdorlar)
+            </button>
+          </div>
         )}
       </div>
 
